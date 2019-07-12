@@ -10,8 +10,6 @@ Assembly-CSharp.csproj
 *.cache
 obj/
 Library/metadata/
-com.unity.render-pipelines.core@5.7.2/
-com.unity.render-pipelines.lightweight@5.7.2/
 Library/
 Logs/
 ProjectSettings/
