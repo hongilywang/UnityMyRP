@@ -2,7 +2,6 @@ Assembly-CSharp.csproj
 *.sln
 *.csproj
 .vs/
-*.meta
 *.asmdef
 *.bin
 *.dll
@@ -13,5 +12,4 @@ Library/metadata/
 Library/
 Logs/
 ProjectSettings/
-Assets/Scenes/SampleScene.unity
 Temp/
