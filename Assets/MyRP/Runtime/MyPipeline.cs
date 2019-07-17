@@ -20,10 +20,10 @@ namespace MyRP
             context.SetupCameraProperties(camera);
 
             //创建command buffer
-            var commandBuffer = new CommandBuffer();
-            commandBuffer.name = "CommandBufferBeforeSkybox";
-            //清除RT的深度值，保留颜色
-            commandBuffer.ClearRenderTarget(true, false, Color.clear);
+            var commandBuffer = new CommandBuffer{ name = "CommandBufferBeforeSkybox" };
+            //根据相机设置来清理RT
+            CameraClearFlags clearFlags = camera.clearFlags;
+            commandBuffer.ClearRenderTarget((clearFlags & CameraClearFlags.Depth) != 0, (clearFlags & CameraClearFlags.Color) != 0, camera.backgroundColor);
             context.ExecuteCommandBuffer(commandBuffer);
             commandBuffer.Release();
 
