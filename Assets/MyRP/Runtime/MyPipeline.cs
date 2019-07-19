@@ -16,6 +16,9 @@ namespace MyRP
 
         void Render(ScriptableRenderContext context, Camera camera)
         {
+            //culling
+            ScriptableCullingParameters cullingParameters;
+
             //将相机的属性（比如相机的视口矩阵）出入shader
             context.SetupCameraProperties(camera);
 
