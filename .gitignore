@@ -2,7 +2,6 @@ Assembly-CSharp.csproj
 *.sln
 *.csproj
 .vs/
-*.asmdef
 *.bin
 *.dll
 *.pdb
@@ -11,5 +10,4 @@ obj/
 Library/metadata/
 Library/
 Logs/
-ProjectSettings/
 Temp/

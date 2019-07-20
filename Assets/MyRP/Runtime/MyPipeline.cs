@@ -18,6 +18,9 @@ namespace MyRP
         {
             //culling
             ScriptableCullingParameters cullingParameters;
+            if (!camera.TryGetCullingParameters(out cullingParameters))
+                return;
+            CullingResults culling = context.Cull(ref cullingParameters);
 
             //将相机的属性（比如相机的视口矩阵）出入shader
             context.SetupCameraProperties(camera);
@@ -29,6 +32,12 @@ namespace MyRP
             commandBuffer.ClearRenderTarget((clearFlags & CameraClearFlags.Depth) != 0, (clearFlags & CameraClearFlags.Color) != 0, camera.backgroundColor);
             context.ExecuteCommandBuffer(commandBuffer);
             commandBuffer.Release();
+
+            //Drawing
+            SortingSettings sortingSettings = new SortingSettings(camera);
+            DrawingSettings drawingSettings = new DrawingSettings(new ShaderTagId("Unlit/Transparent"), sortingSettings);
+            FilteringSettings filteringSettings = new FilteringSettings();
+            context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
 
             context.DrawSkybox(camera);
             context.Submit();
