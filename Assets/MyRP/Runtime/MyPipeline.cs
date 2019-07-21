@@ -34,12 +34,17 @@ namespace MyRP
             commandBuffer.Release();
 
             //Drawing
-            SortingSettings sortingSettings = new SortingSettings(camera);
-            DrawingSettings drawingSettings = new DrawingSettings(new ShaderTagId("Unlit/Transparent"), sortingSettings);
-            FilteringSettings filteringSettings = new FilteringSettings();
+            SortingSettings sortingSettings = new SortingSettings(camera) {criteria = SortingCriteria.CommonOpaque };
+            DrawingSettings drawingSettings = new DrawingSettings(new ShaderTagId("ForwardBase"), sortingSettings);
+            FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
 
             context.DrawSkybox(camera);
+
+            //透明的渲染需要在skybox后面
+            sortingSettings.criteria = SortingCriteria.CommonTransparent;
+            filteringSettings.renderQueueRange = RenderQueueRange.transparent;
+            context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
             context.Submit();
         }
     }
