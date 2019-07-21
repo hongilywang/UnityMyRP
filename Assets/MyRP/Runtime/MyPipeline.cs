@@ -9,7 +9,8 @@ namespace MyRP
     public class MyPipeline : RenderPipeline
     {
         //创建command buffer
-        CommandBuffer commandBuffer = new CommandBuffer { name = "MyRP Render Camera" };
+        const string commandBufferName = "MyRP Render Camera";
+        CommandBuffer cameraBuffer = new CommandBuffer { name = commandBufferName };
         CullingResults culling;
         ScriptableCullingParameters cullingParameters;
         ShaderTagId shaderTagId = new ShaderTagId("SRPDefaultUnlit");
@@ -32,9 +33,10 @@ namespace MyRP
 
             //根据相机设置来清理RT
             CameraClearFlags clearFlags = camera.clearFlags;
-            commandBuffer.ClearRenderTarget((clearFlags & CameraClearFlags.Depth) != 0, (clearFlags & CameraClearFlags.Color) != 0, camera.backgroundColor);
-            context.ExecuteCommandBuffer(commandBuffer);
-            commandBuffer.Clear();
+            cameraBuffer.ClearRenderTarget((clearFlags & CameraClearFlags.Depth) != 0, (clearFlags & CameraClearFlags.Color) != 0, camera.backgroundColor);
+            cameraBuffer.BeginSample(commandBufferName);
+            context.ExecuteCommandBuffer(cameraBuffer);
+            cameraBuffer.Clear();
 
             //Drawing
             SortingSettings sortingSettings = new SortingSettings(camera) {criteria = SortingCriteria.CommonOpaque };
@@ -48,6 +50,11 @@ namespace MyRP
             sortingSettings.criteria = SortingCriteria.CommonTransparent;
             filteringSettings.renderQueueRange = RenderQueueRange.transparent;
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
+
+            cameraBuffer.EndSample(commandBufferName);
+            context.ExecuteCommandBuffer(cameraBuffer);
+            cameraBuffer.Clear();
+
             context.Submit();
         }
     }
