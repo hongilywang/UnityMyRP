@@ -28,6 +28,12 @@ namespace MyRP
             //culling
             if (!camera.TryGetCullingParameters(out cullingParameters))
                 return;
+
+#if UNITY_EDITOR
+            if (camera.cameraType == CameraType.SceneView)
+                ScriptableRenderContext.EmitWorldGeometryForSceneView(camera);
+#endif
+
             culling = context.Cull(ref cullingParameters);
 
             //将相机的属性（比如相机的视口矩阵）出入shader
