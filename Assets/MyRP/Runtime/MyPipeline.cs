@@ -15,6 +15,9 @@ namespace MyRP
         ScriptableCullingParameters cullingParameters;
         ShaderTagId shaderTagId = new ShaderTagId("SRPDefaultUnlit");
 
+        //错误shader材质
+        Material errorMaterial;
+
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
             for (int i = 0; i < cameras.Length; ++i)
@@ -51,11 +54,34 @@ namespace MyRP
             filteringSettings.renderQueueRange = RenderQueueRange.transparent;
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
 
+            //
+            DrawDefaultPipeline(context, camera);
+
             cameraBuffer.EndSample(commandBufferName);
             context.ExecuteCommandBuffer(cameraBuffer);
             cameraBuffer.Clear();
 
             context.Submit();
+        }
+
+        void DrawDefaultPipeline(ScriptableRenderContext context, Camera camera)
+        {
+            if (errorMaterial == null)
+            {
+                Shader errorShader = Shader.Find("Hidden/InternalErrorShader");
+                errorMaterial = new Material(errorShader) { hideFlags = HideFlags.HideAndDontSave };
+            }
+
+            DrawingSettings drawingSettings = new DrawingSettings(new ShaderTagId("ForwardBase"), new SortingSettings(camera));
+            drawingSettings.SetShaderPassName(1, new ShaderTagId("PrepassBase"));
+            drawingSettings.SetShaderPassName(1, new ShaderTagId("Always"));
+            drawingSettings.SetShaderPassName(1, new ShaderTagId("Vertex"));
+            drawingSettings.SetShaderPassName(1, new ShaderTagId("VertexLMRGBM"));
+            drawingSettings.SetShaderPassName(1, new ShaderTagId("VertexLM"));
+
+            drawingSettings.overrideMaterial = errorMaterial;
+            FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.all, -1);
+            context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
         }
     }
 }
