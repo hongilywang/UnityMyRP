@@ -8,6 +8,12 @@ namespace MyRP
 {
     public class MyPipeline : RenderPipeline
     {
+        //创建command buffer
+        CommandBuffer commandBuffer = new CommandBuffer { name = "MyRP Render Camera" };
+        CullingResults culling;
+        ScriptableCullingParameters cullingParameters;
+        ShaderTagId shaderTagId = new ShaderTagId("SRPDefaultUnlit");
+
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
             for (int i = 0; i < cameras.Length; ++i)
@@ -17,25 +23,22 @@ namespace MyRP
         void Render(ScriptableRenderContext context, Camera camera)
         {
             //culling
-            ScriptableCullingParameters cullingParameters;
             if (!camera.TryGetCullingParameters(out cullingParameters))
                 return;
-            CullingResults culling = context.Cull(ref cullingParameters);
+            culling = context.Cull(ref cullingParameters);
 
             //将相机的属性（比如相机的视口矩阵）出入shader
             context.SetupCameraProperties(camera);
 
-            //创建command buffer
-            var commandBuffer = new CommandBuffer{ name = "CommandBufferBeforeSkybox" };
             //根据相机设置来清理RT
             CameraClearFlags clearFlags = camera.clearFlags;
             commandBuffer.ClearRenderTarget((clearFlags & CameraClearFlags.Depth) != 0, (clearFlags & CameraClearFlags.Color) != 0, camera.backgroundColor);
             context.ExecuteCommandBuffer(commandBuffer);
-            commandBuffer.Release();
+            commandBuffer.Clear();
 
             //Drawing
             SortingSettings sortingSettings = new SortingSettings(camera) {criteria = SortingCriteria.CommonOpaque };
-            DrawingSettings drawingSettings = new DrawingSettings(new ShaderTagId("ForwardBase"), sortingSettings);
+            DrawingSettings drawingSettings = new DrawingSettings(shaderTagId, sortingSettings);
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
 
