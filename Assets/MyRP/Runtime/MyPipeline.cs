@@ -17,6 +17,14 @@ namespace MyRP
         //错误shader材质
         Material errorMaterial;
 
+        //是否开启动态Batch
+        bool enableDynamicBatching;
+
+        public MyPipeline(bool dynamicBatching)
+        {
+            enableDynamicBatching = dynamicBatching;
+        }
+
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
             for (int i = 0; i < cameras.Length; ++i)
@@ -49,6 +57,7 @@ namespace MyRP
             //Drawing
             SortingSettings sortingSettings = new SortingSettings(camera) {criteria = SortingCriteria.CommonOpaque };
             DrawingSettings drawingSettings = new DrawingSettings(shaderTagId, sortingSettings);
+            drawingSettings.enableDynamicBatching = enableDynamicBatching;
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
 

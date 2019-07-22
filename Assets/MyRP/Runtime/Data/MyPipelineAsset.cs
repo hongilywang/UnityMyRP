@@ -8,9 +8,13 @@ namespace MyRP
     [CreateAssetMenu(fileName = "MyPipelineAsset", menuName = "MyRP/Create RP Asset")]
     public class MyPipelineAsset : RenderPipelineAsset
     {
+        //动态Batch开关
+        [SerializeField]
+        bool dynamicBatching;
+
         protected override RenderPipeline CreatePipeline()
         {
-            return new MyPipeline();
+            return new MyPipeline(dynamicBatching);
         }
 
     }
