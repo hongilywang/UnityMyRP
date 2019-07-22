@@ -11,6 +11,8 @@
 
         #pragma target 3.5
 
+        #pragma multi_compile_instancing
+
         #pragma vertex UnlitPassVertex
         #pragma fragment UnlitPassFragment
 

@@ -19,10 +19,13 @@ namespace MyRP
 
         //是否开启动态Batch
         bool enableDynamicBatching;
+        //是否开启gup instance
+        bool enableGPUInstancing;
 
-        public MyPipeline(bool dynamicBatching)
+        public MyPipeline(bool dynamicBatching, bool instancing)
         {
             enableDynamicBatching = dynamicBatching;
+            enableGPUInstancing = instancing;
         }
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
@@ -58,6 +61,7 @@ namespace MyRP
             SortingSettings sortingSettings = new SortingSettings(camera) {criteria = SortingCriteria.CommonOpaque };
             DrawingSettings drawingSettings = new DrawingSettings(shaderTagId, sortingSettings);
             drawingSettings.enableDynamicBatching = enableDynamicBatching;
+            drawingSettings.enableInstancing = enableGPUInstancing;
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
 
