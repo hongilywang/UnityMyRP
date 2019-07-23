@@ -10,11 +10,11 @@ namespace MyRP
     {
         //动态Batch开关
         [SerializeField]
-        bool dynamicBatching;
+        bool dynamicBatching = false;
 
         //gpu instance开关
         [SerializeField]
-        bool instancing;
+        bool instancing = false;
 
         protected override RenderPipeline CreatePipeline()
         {
