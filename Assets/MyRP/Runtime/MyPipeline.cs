@@ -25,9 +25,9 @@ namespace MyRP
         //将方向光的颜色和方向传入shader
         const int maxVisibleLights = 4;
         static int visibleLightColorsId = Shader.PropertyToID("_VisibleLightColors");
-        static int visibleLightDirectionsId = Shader.PropertyToID("_VisibleLightDirections");
+        static int visibleLightDirectionsOrPositionsId = Shader.PropertyToID("_VisibleLightDirectionsOrPositions");
         Vector4[] visibleLightColors = new Vector4[maxVisibleLights];
-        Vector4[] visibleLightDirections = new Vector4[maxVisibleLights];
+        Vector4[] visibleLightDirectionsOrPositions = new Vector4[maxVisibleLights];
 
         public MyPipeline(bool dynamicBatching, bool instancing)
         {
@@ -70,7 +70,7 @@ namespace MyRP
 
             //将方向光的颜色和方向传入shader
             cameraBuffer.SetGlobalVectorArray(visibleLightColorsId, visibleLightColors);
-            cameraBuffer.SetGlobalVectorArray(visibleLightDirectionsId, visibleLightDirections);
+            cameraBuffer.SetGlobalVectorArray(visibleLightDirectionsOrPositionsId, visibleLightDirectionsOrPositions);
 
             context.ExecuteCommandBuffer(cameraBuffer);
             cameraBuffer.Clear();
@@ -124,16 +124,30 @@ namespace MyRP
         //存入可见的方向光信息
         void ConfigureLights()
         {
-            for (int i = 0; i < culling.visibleLights.Length; ++i)
+            int i = 0;
+            for (; i < culling.visibleLights.Length; ++i)
             {
+                if (i == maxVisibleLights)
+                    break;
+
                 VisibleLight light = culling.visibleLights[i];
                 visibleLightColors[i] = light.finalColor;
-                Vector4 v = light.localToWorldMatrix.GetColumn(2);
-                v.x = -v.x;
-                v.y = -v.y;
-                v.z = -v.z;
-                visibleLightDirections[i] = v;
+                if (light.lightType == LightType.Directional)
+                {
+                    Vector4 v = light.localToWorldMatrix.GetColumn(2);
+                    v.x = -v.x;
+                    v.y = -v.y;
+                    v.z = -v.z;
+                    visibleLightDirectionsOrPositions[i] = v;
+                }
+                else
+                {
+                    visibleLightDirectionsOrPositions[i] = light.localToWorldMatrix.GetColumn(3);
+                }
             }
+
+            for (; i < maxVisibleLights; ++i)
+                visibleLightColors[i] = Color.clear;
         }
     }
 }
