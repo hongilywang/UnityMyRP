@@ -16,17 +16,29 @@ CBUFFER_END
 CBUFFER_START(_LightBuffer)
     float4 _VisibleLightColors[MAX_VISIBLE_LIGHT];
     float4 _VisibleLightDirectionsOrPositions[MAX_VISIBLE_LIGHT];
+    float4 _VisibleLightAttenuations[MAX_VISIBLE_LIGHT];
+    float4 _VisibleLightSpotDirections[MAX_VISIBLE_LIGHT];
 CBUFFER_END
 
 float3 DiffuseLight (int index, float3 normal, float3 worldPos)
 {
     float3 lightColor = _VisibleLightColors[index].rgb;
     float4 lightPositionOrDirection = _VisibleLightDirectionsOrPositions[index];
+    float4 lightAttenuation = _VisibleLightAttenuations[index];
+    float3 spotDirection = _VisibleLightSpotDirections[index].xyz;
+
     //同时处理了点光源和方向光的方向计算
     float3 lightVector = lightPositionOrDirection.xyz - worldPos * lightPositionOrDirection.w;
     float3 lightDirection = normalize(lightVector);
-
     float diffuse = saturate(dot(normal, lightDirection));
+
+    float rangeFade = dot(lightVector, lightVector) * lightAttenuation.x;
+    rangeFade = saturate(1.0 - rangeFade * rangeFade);
+    rangeFade *= rangeFade;
+
+    float distanceSqr = max(dot(lightVector, lightVector), 0.00001);
+    diffuse *= rangeFade / distanceSqr;
+
     return diffuse * lightColor;
 }
 
