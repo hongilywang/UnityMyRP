@@ -131,12 +131,14 @@ namespace MyRP
         //存入可见的方向光信息
         void ConfigureLights()
         {
-            Vector4 attenuation = Vector4.zero;
             int i = 0;
             for (; i < culling.visibleLights.Length; ++i)
             {
                 if (i == maxVisibleLights)
                     break;
+
+                Vector4 attenuation = Vector4.zero;
+                attenuation.w = 1;
 
                 VisibleLight light = culling.visibleLights[i];
                 visibleLightColors[i] = light.finalColor;
@@ -152,7 +154,6 @@ namespace MyRP
                 {
                     visibleLightDirectionsOrPositions[i] = light.localToWorldMatrix.GetColumn(3);
                     attenuation.x = 1f / Mathf.Max(light.range * light.range, 0.00001f);
-
                     if (light.lightType == LightType.Spot)
                     {
                         Vector4 v = light.localToWorldMatrix.GetColumn(2);
@@ -160,6 +161,25 @@ namespace MyRP
                         v.y = -v.y;
                         v.z = -v.z;
                         visibleLightSpotDirections[i] = v;
+
+                        //计算lwpl里面的聚光灯的innerCos和outerCos
+                        float outerRad = Mathf.Deg2Rad * 0.5f * light.spotAngle;
+                        float outerCos = Mathf.Cos(outerRad);
+                        float outerTan = Mathf.Tan(outerRad);
+                        float innerCos = Mathf.Cos(Mathf.Atan((46 / 64f) * outerTan));
+                        //lwpl的衰减定义是
+                        /*
+                            (Ds * Dl)a + b
+                            a = 1/(cos(ri) - cos(ro)
+                            b = -cos(ro)a
+
+                            cos(ri)是innerCos, cos(ro)是outerCos
+                            Ds * Dl是聚光灯朝向和灯光方向的点乘
+                        */
+                        float anleRange = Mathf.Max(innerCos - outerCos, 0.001f);
+                        attenuation.z = 1f / anleRange;
+                        attenuation.w = -outerCos * attenuation.z;
+
                     }
                 }
                 visibleLightAttenuations[i] = attenuation;

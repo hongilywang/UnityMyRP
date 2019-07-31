@@ -36,8 +36,12 @@ float3 DiffuseLight (int index, float3 normal, float3 worldPos)
     rangeFade = saturate(1.0 - rangeFade * rangeFade);
     rangeFade *= rangeFade;
 
+    float spotFade = dot(spotDirection, lightDirection);
+    spotFade = saturate(spotFade * lightAttenuation.z + lightAttenuation.w);
+    spotFade *= spotFade;
+
     float distanceSqr = max(dot(lightVector, lightVector), 0.00001);
-    diffuse *= rangeFade / distanceSqr;
+    diffuse *= spotFade * rangeFade / distanceSqr;
 
     return diffuse * lightColor;
 }
