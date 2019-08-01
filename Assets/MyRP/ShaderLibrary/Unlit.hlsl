@@ -1,7 +1,7 @@
 #ifndef MYRP_UNLIT_INCLUDED
 #define MYRP_UNLIT_INCLUDED
 
-#include "com.unity.render-pipelines.core@5.16.1/ShaderLibrary/Common.hlsl"
+#include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/Common.hlsl"
 
 CBUFFER_START(UnityPerFrame) 
     float4x4 unity_MatrixVP;
@@ -12,7 +12,7 @@ CBUFFER_START(UnityPerDraw)
 CBUFFER_END
 
 #define UNITY_MATRIX_M unity_ObjectToWorld
-#include "com.unity.render-pipelines.core@5.16.1/ShaderLibrary/UnityInstancing.hlsl"
+#include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/UnityInstancing.hlsl"
 
 // CBUFFER_START(UnityPerMaterial)
 //     float4 _Color;
