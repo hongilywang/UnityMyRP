@@ -23,7 +23,7 @@ namespace MyRP
         bool enableGPUInstancing;
 
         //将方向光的颜色和方向传入shader
-        const int maxVisibleLights = 4;
+        const int maxVisibleLights = 16;
         static int visibleLightColorsId = Shader.PropertyToID("_VisibleLightColors");
         static int visibleLightDirectionsOrPositionsId = Shader.PropertyToID("_VisibleLightDirectionsOrPositions");
         static int visibleLightAttenuationsId = Shader.PropertyToID("_VisibleLightAttenuations");
