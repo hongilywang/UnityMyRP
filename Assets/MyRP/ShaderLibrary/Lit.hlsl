@@ -9,6 +9,8 @@ CBUFFER_END
 
 CBUFFER_START(UnityPerDraw)
     float4x4 unity_ObjectToWorld;
+    float4 unity_LightData;     //获取有效的灯光数量.y
+    float4 unity_LightIndices[2];
 CBUFFER_END
 
 #define MAX_VISIBLE_LIGHT 4
@@ -19,6 +21,17 @@ CBUFFER_START(_LightBuffer)
     float4 _VisibleLightAttenuations[MAX_VISIBLE_LIGHT];
     float4 _VisibleLightSpotDirections[MAX_VISIBLE_LIGHT];
 CBUFFER_END
+
+//参考LWRP的 计算对应灯光的index///////////
+int GetPerObjectLightIndex(int index)
+{
+    // The following code is more optimal than indexing unity_4LightIndices0.
+    // Conditional moves are branch free even on mali-400
+    half2 lightIndex2 = (index < 2.0h) ? unity_LightIndices[0].xy : unity_LightIndices[0].zw;
+    half i_rem = (index < 2.0h) ? index : index - 2.0h;
+    return (i_rem < 1.0h) ? lightIndex2.x : lightIndex2.y;
+}
+////////////////////////////////////////
 
 float3 DiffuseLight (int index, float3 normal, float3 worldPos)
 {
@@ -92,9 +105,10 @@ float4 LitPassFragment (VertexOutput input) : SV_TARGET
     float3 albedo = UNITY_ACCESS_INSTANCED_PROP(PerInstance, _Color).rgb;
 
     float3 diffuseLight = 0;
-    for (int i = 0; i < MAX_VISIBLE_LIGHT; i++)
+    for (int i = 0; i < unity_LightData.y; i++)
     {
-        diffuseLight += DiffuseLight(i, input.normal, input.worldPos);
+        int lightIndex = GetPerObjectLightIndex(i);
+        diffuseLight += DiffuseLight(lightIndex, input.normal, input.worldPos);
     }
 
     float3 color = diffuseLight * albedo;

@@ -84,9 +84,13 @@ namespace MyRP
 
             //Drawing
             SortingSettings sortingSettings = new SortingSettings(camera) {criteria = SortingCriteria.CommonOpaque };
-            DrawingSettings drawingSettings = new DrawingSettings(shaderTagId, sortingSettings);
-            drawingSettings.enableDynamicBatching = enableDynamicBatching;
-            drawingSettings.enableInstancing = enableGPUInstancing;
+            DrawingSettings drawingSettings = new DrawingSettings(shaderTagId, sortingSettings)
+            {
+                enableDynamicBatching = enableDynamicBatching,
+                enableInstancing = enableGPUInstancing,
+                perObjectData = PerObjectData.LightIndices | PerObjectData.LightData
+        };
+
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
 
@@ -131,8 +135,7 @@ namespace MyRP
         //存入可见的方向光信息
         void ConfigureLights()
         {
-            int i = 0;
-            for (; i < culling.visibleLights.Length; ++i)
+            for (int i = 0; i < culling.visibleLights.Length; ++i)
             {
                 if (i == maxVisibleLights)
                     break;
@@ -184,9 +187,6 @@ namespace MyRP
                 }
                 visibleLightAttenuations[i] = attenuation;
             }
-
-            for (; i < maxVisibleLights; ++i)
-                visibleLightColors[i] = Color.clear;
         }
     }
 }
