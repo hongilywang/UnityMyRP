@@ -83,6 +83,7 @@ struct VertexOutput
     float4 clipPos : SV_POSITION;
     float3 normal : TEXCOORD0;
     float3 worldPos : TEXCOORD1;
+    float3 vertexLighting : TEXCOORD2;
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
@@ -95,6 +96,15 @@ VertexOutput LitPassVertex (VertexInput input)
     output.clipPos = mul(unity_MatrixVP, worldPos);
     output.normal = mul((float3x3)UNITY_MATRIX_M, input.normal);
     output.worldPos = worldPos.xyz;
+
+    //将不重要的灯光计算放到顶点计算中，减少pxiel的计算
+    output.vertexLighting = 0;
+    for (int i = 4; i < min(unity_LightData.y, 8); i++)
+    {
+        int lightIndex = GetPerObjectLightIndex(i, 1);
+        output.vertexLighting += DiffuseLight(lightIndex, output.normal, output.worldPos);
+    }
+
     return output;
 }
 
@@ -111,11 +121,11 @@ float4 LitPassFragment (VertexOutput input) : SV_TARGET
         diffuseLight += DiffuseLight(lightIndex, input.normal, input.worldPos);
     }
 
-    for (int i = 0; i < min(unity_LightData.y, 8); i++)
-    {
-        int lightIndex = GetPerObjectLightIndex(i, 1);
-        diffuseLight += DiffuseLight(lightIndex, input.normal, input.worldPos);
-    }
+    // for (int i = 0; i < min(unity_LightData.y, 8); i++)
+    // {
+    //     int lightIndex = GetPerObjectLightIndex(i, 1);
+    //     diffuseLight += DiffuseLight(lightIndex, input.normal, input.worldPos);
+    // }
 
     float3 color = diffuseLight * albedo;
     return float4(color, 1);
