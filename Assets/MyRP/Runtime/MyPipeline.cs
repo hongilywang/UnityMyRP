@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Unity.Collections;
+using UnityEngine;
 using UnityEngine.Rendering;
 
 using Conditional = System.Diagnostics.ConditionalAttribute;
@@ -186,6 +187,17 @@ namespace MyRP
                     }
                 }
                 visibleLightAttenuations[i] = attenuation;
+            }
+
+            //排除多余的light
+            if (culling.visibleLights.Length > maxVisibleLights)
+            {
+                NativeArray<int> lightIndices = culling.GetLightIndexMap(Allocator.Temp);
+                for (int i = maxVisibleLights; i < culling.visibleLights.Length; ++i)
+                {
+                    lightIndices[i] = -1;
+                }
+                culling.SetLightIndexMap(lightIndices);
             }
         }
     }
