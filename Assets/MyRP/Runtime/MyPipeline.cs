@@ -29,6 +29,7 @@ namespace MyRP
         static int visibleLightDirectionsOrPositionsId = Shader.PropertyToID("_VisibleLightDirectionsOrPositions");
         static int visibleLightAttenuationsId = Shader.PropertyToID("_VisibleLightAttenuations");
         static int visibleLightSpotDirectionsId = Shader.PropertyToID("_VisibleLightSpotDirections");
+        static int unity_LightDataId = Shader.PropertyToID("unity_LightData");
 
         Vector4[] visibleLightColors = new Vector4[maxVisibleLights];
         Vector4[] visibleLightDirectionsOrPositions = new Vector4[maxVisibleLights];
@@ -70,7 +71,10 @@ namespace MyRP
             cameraBuffer.ClearRenderTarget((clearFlags & CameraClearFlags.Depth) != 0, (clearFlags & CameraClearFlags.Color) != 0, camera.backgroundColor);
 
             //获取可见的方向光
-            ConfigureLights();
+            if (culling.visibleLights.Length > 0)
+                ConfigureLights();
+            else
+                Shader.SetGlobalVector(unity_LightDataId, Vector4.zero);
 
             cameraBuffer.BeginSample(commandBufferName);
 
@@ -89,8 +93,11 @@ namespace MyRP
             {
                 enableDynamicBatching = enableDynamicBatching,
                 enableInstancing = enableGPUInstancing,
-                perObjectData = PerObjectData.LightIndices | PerObjectData.LightData
-        };
+                perObjectData = PerObjectData.None
+            };
+
+            if (culling.visibleLights.Length > 0)
+                drawingSettings.perObjectData = PerObjectData.LightIndices | PerObjectData.LightData;
 
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
@@ -194,9 +201,8 @@ namespace MyRP
             {
                 NativeArray<int> lightIndices = culling.GetLightIndexMap(Allocator.Temp);
                 for (int i = maxVisibleLights; i < culling.visibleLights.Length; ++i)
-                {
                     lightIndices[i] = -1;
-                }
+
                 culling.SetLightIndexMap(lightIndices);
             }
         }
