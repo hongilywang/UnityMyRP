@@ -9,8 +9,11 @@ namespace MyRP
     public class MyPipeline : RenderPipeline
     {
         //创建command buffer
-        const string commandBufferName = "MyRP Render Camera";
-        CommandBuffer cameraBuffer = new CommandBuffer { name = commandBufferName };
+        const string commandCameraBufferName = "MyRP Render Camera";
+        const string commandShadowBufferName = "MyRP Render Shadows";
+        CommandBuffer cameraBuffer = new CommandBuffer { name = commandCameraBufferName };
+        CommandBuffer shadowBuffer = new CommandBuffer { name = commandShadowBufferName };
+
         CullingResults culling;
         ScriptableCullingParameters cullingParameters;
         ShaderTagId shaderTagId = new ShaderTagId("SRPDefaultUnlit");
@@ -22,6 +25,9 @@ namespace MyRP
         bool enableDynamicBatching;
         //是否开启gup instance
         bool enableGPUInstancing;
+
+        //shadowMap的阴影贴图
+        RenderTexture shadowMap;
 
         //将方向光的颜色和方向传入shader
         const int maxVisibleLights = 16;
@@ -63,6 +69,8 @@ namespace MyRP
 
             culling = context.Cull(ref cullingParameters);
 
+            RenderShadows(context);
+
             //将相机的属性（比如相机的视口矩阵）出入shader
             context.SetupCameraProperties(camera);
 
@@ -76,7 +84,7 @@ namespace MyRP
             else
                 Shader.SetGlobalVector(unity_LightDataId, Vector4.zero);
 
-            cameraBuffer.BeginSample(commandBufferName);
+            cameraBuffer.BeginSample(commandCameraBufferName);
 
             //将方向光的颜色和方向传入shader
             cameraBuffer.SetGlobalVectorArray(visibleLightColorsId, visibleLightColors);
@@ -112,11 +120,16 @@ namespace MyRP
             //
             DrawDefaultPipeline(context, camera);
 
-            cameraBuffer.EndSample(commandBufferName);
+            cameraBuffer.EndSample(commandCameraBufferName);
             context.ExecuteCommandBuffer(cameraBuffer);
             cameraBuffer.Clear();
 
             context.Submit();
+            if (shadowMap)
+            {
+                RenderTexture.ReleaseTemporary(shadowMap);
+                shadowMap = null;
+            }
         }
 
         [Conditional("DEVELOPMENT_BUILD"), Conditional("UNITY_EDITOR")]
@@ -205,6 +218,37 @@ namespace MyRP
 
                 culling.SetLightIndexMap(lightIndices);
             }
+        }
+
+        //渲染shadowmap
+        void RenderShadows(ScriptableRenderContext context)
+        {
+            //设置shadowMap贴图的
+            shadowMap = RenderTexture.GetTemporary(512, 152, 16, RenderTextureFormat.Shadowmap);
+            shadowMap.filterMode = FilterMode.Bilinear;
+            shadowMap.wrapMode = TextureWrapMode.Clamp;
+
+            //告诉GPU设置rt
+            CoreUtils.SetRenderTarget(shadowBuffer, shadowMap, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, ClearFlag.Depth);
+            shadowBuffer.BeginSample(commandShadowBufferName);
+            context.ExecuteCommandBuffer(shadowBuffer);
+            shadowBuffer.Clear();
+
+            //获取spot等的相关矩阵
+            Matrix4x4 viewMatrix, projectionMatrix;
+            ShadowSplitData splitData;
+            culling.ComputeSpotShadowMatricesAndCullingPrimitives(0, out viewMatrix, out projectionMatrix, out splitData);
+            shadowBuffer.SetViewProjectionMatrices(viewMatrix, projectionMatrix);
+            context.ExecuteCommandBuffer(shadowBuffer);
+            shadowBuffer.Clear();
+
+            //正式draw
+            var shadowSetting = new ShadowDrawingSettings(culling, 0);
+            context.DrawShadows(ref shadowSetting);
+
+            shadowBuffer.EndSample(commandShadowBufferName);
+            context.ExecuteCommandBuffer(shadowBuffer);
+            shadowBuffer.Clear();
         }
     }
 }

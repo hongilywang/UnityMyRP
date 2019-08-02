@@ -121,12 +121,6 @@ float4 LitPassFragment (VertexOutput input) : SV_TARGET
         diffuseLight += DiffuseLight(lightIndex, input.normal, input.worldPos);
     }
 
-    // for (int i = 0; i < min(unity_LightData.y, 8); i++)
-    // {
-    //     int lightIndex = GetPerObjectLightIndex(i, 1);
-    //     diffuseLight += DiffuseLight(lightIndex, input.normal, input.worldPos);
-    // }
-
     float3 color = diffuseLight * albedo;
     return float4(color, 1);
 }
