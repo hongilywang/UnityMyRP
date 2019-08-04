@@ -28,6 +28,8 @@ namespace MyRP
 
         //shadowMap的阴影贴图
         RenderTexture shadowMap;
+        //阴影贴图尺寸
+        int shadowMapSize;
 
         //将方向光的颜色和方向传入shader
         const int maxVisibleLights = 16;
@@ -36,18 +38,22 @@ namespace MyRP
         static int visibleLightAttenuationsId = Shader.PropertyToID("_VisibleLightAttenuations");
         static int visibleLightSpotDirectionsId = Shader.PropertyToID("_VisibleLightSpotDirections");
         static int unity_LightDataId = Shader.PropertyToID("unity_LightData");
+        static int shadowMapId = Shader.PropertyToID("_ShadowMap");
+        static int worldToShadowMatrixId = Shader.PropertyToID("_WorldToShadowMatrix");
+        static int shadowBiasId = Shader.PropertyToID("_ShadowBias");
 
         Vector4[] visibleLightColors = new Vector4[maxVisibleLights];
         Vector4[] visibleLightDirectionsOrPositions = new Vector4[maxVisibleLights];
         Vector4[] visibleLightAttenuations = new Vector4[maxVisibleLights];
         Vector4[] visibleLightSpotDirections = new Vector4[maxVisibleLights];
 
-        public MyPipeline(bool dynamicBatching, bool instancing)
+        public MyPipeline(bool dynamicBatching, bool instancing, int shadowMapSize)
         {
             //light的强度值使用线性空间
             GraphicsSettings.lightsUseLinearIntensity = true;
             enableDynamicBatching = dynamicBatching;
             enableGPUInstancing = instancing;
+            this.shadowMapSize = shadowMapSize;
         }
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
@@ -224,7 +230,7 @@ namespace MyRP
         void RenderShadows(ScriptableRenderContext context)
         {
             //设置shadowMap贴图的
-            shadowMap = RenderTexture.GetTemporary(512, 152, 16, RenderTextureFormat.Shadowmap);
+            shadowMap = RenderTexture.GetTemporary(shadowMapSize, shadowMapSize, 16, RenderTextureFormat.Shadowmap);
             shadowMap.filterMode = FilterMode.Bilinear;
             shadowMap.wrapMode = TextureWrapMode.Clamp;
 
@@ -235,16 +241,31 @@ namespace MyRP
             shadowBuffer.Clear();
 
             //获取spot等的相关矩阵
+            //目前这里有报错
             Matrix4x4 viewMatrix, projectionMatrix;
             ShadowSplitData splitData;
             culling.ComputeSpotShadowMatricesAndCullingPrimitives(0, out viewMatrix, out projectionMatrix, out splitData);
+
             shadowBuffer.SetViewProjectionMatrices(viewMatrix, projectionMatrix);
+            shadowBuffer.SetGlobalFloat(shadowBiasId, culling.visibleLights[0].light.shadowBias);
             context.ExecuteCommandBuffer(shadowBuffer);
             shadowBuffer.Clear();
 
             //正式draw
-            var shadowSetting = new ShadowDrawingSettings(culling, 0);
-            context.DrawShadows(ref shadowSetting);
+            var shadowSettings = new ShadowDrawingSettings(culling, 0);
+            context.DrawShadows(ref shadowSettings);
+
+            if (SystemInfo.usesReversedZBuffer)
+            {
+                projectionMatrix.m20 = -projectionMatrix.m20;
+                projectionMatrix.m21 = -projectionMatrix.m21;
+                projectionMatrix.m22 = -projectionMatrix.m22;
+                projectionMatrix.m23 = -projectionMatrix.m23;
+            }
+            var scaleOffset = Matrix4x4.TRS(Vector3.one * 0.5f, Quaternion.identity, Vector3.one * 0.5f);
+            Matrix4x4 worldToShadowMatrix = scaleOffset * (projectionMatrix * viewMatrix);
+            shadowBuffer.SetGlobalMatrix(worldToShadowMatrixId, worldToShadowMatrix);
+            shadowBuffer.SetGlobalTexture(shadowMapId, shadowMap);
 
             shadowBuffer.EndSample(commandShadowBufferName);
             context.ExecuteCommandBuffer(shadowBuffer);
