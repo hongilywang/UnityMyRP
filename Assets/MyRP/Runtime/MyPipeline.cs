@@ -41,6 +41,7 @@ namespace MyRP
         static int shadowMapId = Shader.PropertyToID("_ShadowMap");
         static int worldToShadowMatrixId = Shader.PropertyToID("_WorldToShadowMatrix");
         static int shadowBiasId = Shader.PropertyToID("_ShadowBias");
+        static int shadowStrengthId = Shader.PropertyToID("_ShadowStrength");
 
         Vector4[] visibleLightColors = new Vector4[maxVisibleLights];
         Vector4[] visibleLightDirectionsOrPositions = new Vector4[maxVisibleLights];
@@ -266,6 +267,7 @@ namespace MyRP
             Matrix4x4 worldToShadowMatrix = scaleOffset * (projectionMatrix * viewMatrix);
             shadowBuffer.SetGlobalMatrix(worldToShadowMatrixId, worldToShadowMatrix);
             shadowBuffer.SetGlobalTexture(shadowMapId, shadowMap);
+            shadowBuffer.SetGlobalFloat(shadowStrengthId, culling.visibleLights[0].light.shadowStrength);
 
             shadowBuffer.EndSample(commandShadowBufferName);
             context.ExecuteCommandBuffer(shadowBuffer);
