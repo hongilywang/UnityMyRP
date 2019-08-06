@@ -51,6 +51,9 @@ namespace MyRP
         Vector4[] shadowData = new Vector4[maxVisibleLights];
         Matrix4x4[] worldToShadowMatrices = new Matrix4x4[maxVisibleLights];
 
+        //阴影图的数量
+        int shadowTileCount;
+
         public MyPipeline(bool dynamicBatching, bool instancing, int shadowMapSize)
         {
             //light的强度值使用线性空间
@@ -171,6 +174,7 @@ namespace MyRP
         //存入可见的方向光信息
         void ConfigureLights()
         {
+            shadowTileCount = 0;
             for (int i = 0; i < culling.visibleLights.Length; ++i)
             {
                 if (i == maxVisibleLights)
@@ -224,6 +228,7 @@ namespace MyRP
                         Bounds shadowBounds;
                         if (shadowLight.shadows != LightShadows.None && culling.GetShadowCasterBounds(i, out shadowBounds))
                         {
+                            shadowTileCount += 1;
                             shadow.x = shadowLight.shadowStrength;
                             shadow.y = shadowLight.shadows == LightShadows.Soft ? 1f : 0f;
                         }
@@ -248,7 +253,18 @@ namespace MyRP
         //渲染shadowmap
         void RenderShadows(ScriptableRenderContext context)
         {
-            float tileSize = shadowMapSize / 4;
+            int split;
+            if (shadowTileCount <= 1)
+                split = 1;
+            else if (shadowTileCount <= 4)
+                split = 2;
+            else if (shadowTileCount <= 9)
+                split = 3;
+            else
+                split = 4;
+
+            float tileSize = shadowMapSize / split;
+            float tileScale = 1f / split;
             Rect tileViewport = new Rect(0f, 0f, tileSize, tileSize);
 
             //设置shadowMap贴图的
@@ -262,6 +278,7 @@ namespace MyRP
             context.ExecuteCommandBuffer(shadowBuffer);
             shadowBuffer.Clear();
 
+            int tileIndex = 0;
             for (int i = 0; i < culling.visibleLights.Length; ++i)
             {
                 if (i == maxVisibleLights)
@@ -282,13 +299,16 @@ namespace MyRP
                 }
 
                 //将16个灯光的阴影图渲染到一个rt上，将rt分成16分
-                float tileOffsetX = i % 4;
-                float tileOffsetY = i / 4;
+                float tileOffsetX = tileIndex % split;
+                float tileOffsetY = tileIndex / split;
                 tileViewport.x = tileOffsetX * tileSize;
                 tileViewport.y = tileOffsetY * tileSize;
-                shadowBuffer.SetViewport(tileViewport);
-                //将16分阴影图用一个间隔隔开，避免采样时的差值错误
-                shadowBuffer.EnableScissorRect(new Rect(tileViewport.x + 4f, tileViewport.y + 4f, tileSize - 8f, tileSize - 8f));
+                if (split > 1)
+                {
+                    shadowBuffer.SetViewport(tileViewport);
+                    //将16分阴影图用一个间隔隔开，避免采样时的差值错误
+                    shadowBuffer.EnableScissorRect(new Rect(tileViewport.x + 4f, tileViewport.y + 4f, tileSize - 8f, tileSize - 8f));
+                }
 
                 shadowBuffer.SetViewProjectionMatrices(viewMatrix, projectionMatrix);
                 shadowBuffer.SetGlobalFloat(shadowBiasId, culling.visibleLights[i].light.shadowBias);
@@ -309,15 +329,20 @@ namespace MyRP
                 var scaleOffset = Matrix4x4.TRS(Vector3.one * 0.5f, Quaternion.identity, Vector3.one * 0.5f);
                 worldToShadowMatrices[i] = scaleOffset * (projectionMatrix * viewMatrix);
 
-                var tileMatrix = Matrix4x4.identity;
-                tileMatrix.m00 = tileMatrix.m11 = 0.25f;
-                tileMatrix.m03 = tileOffsetX * 0.25f;
-                tileMatrix.m13 = tileOffsetY * 0.25f;
-                worldToShadowMatrices[i] = tileMatrix * worldToShadowMatrices[i];
-                
+                if (split > 1)
+                {
+                    var tileMatrix = Matrix4x4.identity;
+                    tileMatrix.m00 = tileMatrix.m11 = tileScale;
+                    tileMatrix.m03 = tileOffsetX * tileScale;
+                    tileMatrix.m13 = tileOffsetY * tileScale;
+                    worldToShadowMatrices[i] = tileMatrix * worldToShadowMatrices[i];
+                }
+
+                tileIndex += 1;
             }
 
-            shadowBuffer.DisableScissorRect();
+            if (split > 1)
+                shadowBuffer.DisableScissorRect();
 
             shadowBuffer.SetGlobalTexture(shadowMapId, shadowMap);
             shadowBuffer.SetGlobalMatrixArray(worldToShadowMatrixsId, worldToShadowMatrices);
