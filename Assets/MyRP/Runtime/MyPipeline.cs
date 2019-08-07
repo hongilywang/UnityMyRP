@@ -8,6 +8,10 @@ namespace MyRP
 {
     public class MyPipeline : RenderPipeline
     {
+        //
+        const string shadowsHardKeyword = "_SHADOWS_HARD";
+        const string shadowsSoftKeyword = "_SHADOWS_SOFT";
+
         //创建command buffer
         const string commandCameraBufferName = "MyRP Render Camera";
         const string commandShadowBufferName = "MyRP Render Shadows";
@@ -86,11 +90,21 @@ namespace MyRP
             if (culling.visibleLights.Length > 0)
             {
                 ConfigureLights();
-                RenderShadows(context);
+                if (shadowTileCount > 0)
+                {
+                    RenderShadows(context);
+                }
+                else
+                {
+                    CoreUtils.SetKeyword(cameraBuffer, shadowsHardKeyword, false);
+                    CoreUtils.SetKeyword(cameraBuffer, shadowsSoftKeyword, false);
+                }
             }
             else
             {
                 Shader.SetGlobalVector(unity_LightDataId, Vector4.zero);
+                CoreUtils.SetKeyword(cameraBuffer, shadowsHardKeyword, false);
+                CoreUtils.SetKeyword(cameraBuffer, shadowsSoftKeyword, false);
             }
             ConfigureLights();
 
@@ -279,6 +293,8 @@ namespace MyRP
             shadowBuffer.Clear();
 
             int tileIndex = 0;
+            bool hardShadows = false;
+            bool softShadows = false;
             for (int i = 0; i < culling.visibleLights.Length; ++i)
             {
                 if (i == maxVisibleLights)
@@ -339,10 +355,18 @@ namespace MyRP
                 }
 
                 tileIndex += 1;
+
+                if (shadowData[i].y <= 0f)
+                    hardShadows = true;
+                else
+                    softShadows = true;
             }
 
             if (split > 1)
                 shadowBuffer.DisableScissorRect();
+
+            CoreUtils.SetKeyword(shadowBuffer, shadowsHardKeyword, hardShadows);
+            CoreUtils.SetKeyword(shadowBuffer, shadowsSoftKeyword, softShadows);
 
             shadowBuffer.SetGlobalTexture(shadowMapId, shadowMap);
             shadowBuffer.SetGlobalMatrixArray(worldToShadowMatrixsId, worldToShadowMatrices);
