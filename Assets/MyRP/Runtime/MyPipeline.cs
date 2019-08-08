@@ -34,6 +34,8 @@ namespace MyRP
         RenderTexture shadowMap;
         //阴影贴图尺寸
         int shadowMapSize;
+        //阴影距离
+        float shadowDistance;
 
         //将方向光的颜色和方向传入shader
         const int maxVisibleLights = 16;
@@ -58,13 +60,14 @@ namespace MyRP
         //阴影图的数量
         int shadowTileCount;
 
-        public MyPipeline(bool dynamicBatching, bool instancing, int shadowMapSize)
+        public MyPipeline(bool dynamicBatching, bool instancing, int shadowMapSize, float shadowDistance)
         {
             //light的强度值使用线性空间
             GraphicsSettings.lightsUseLinearIntensity = true;
             enableDynamicBatching = dynamicBatching;
             enableGPUInstancing = instancing;
             this.shadowMapSize = shadowMapSize;
+            this.shadowDistance = shadowDistance;
         }
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
@@ -78,6 +81,7 @@ namespace MyRP
             //culling
             if (!camera.TryGetCullingParameters(out cullingParameters))
                 return;
+            cullingParameters.shadowDistance = Mathf.Min(shadowDistance, camera.farClipPlane);
 
 #if UNITY_EDITOR
             if (camera.cameraType == CameraType.SceneView)
@@ -207,6 +211,10 @@ namespace MyRP
                     v.y = -v.y;
                     v.z = -v.z;
                     visibleLightDirectionsOrPositions[i] = v;
+                    shadow = ConfigureShadows(i, light.light);
+
+                    //用z通道为1来表示存储的是方向光的数据
+                    shadow.z = 1;
                 }
                 else
                 {
@@ -238,14 +246,7 @@ namespace MyRP
                         attenuation.z = 1f / anleRange;
                         attenuation.w = -outerCos * attenuation.z;
 
-                        Light shadowLight = light.light;
-                        Bounds shadowBounds;
-                        if (shadowLight.shadows != LightShadows.None && culling.GetShadowCasterBounds(i, out shadowBounds))
-                        {
-                            shadowTileCount += 1;
-                            shadow.x = shadowLight.shadowStrength;
-                            shadow.y = shadowLight.shadows == LightShadows.Soft ? 1f : 0f;
-                        }
+                        shadow = ConfigureShadows(i, light.light);
 
                     }
                 }
@@ -308,7 +309,15 @@ namespace MyRP
                 //目前这里有报错
                 Matrix4x4 viewMatrix, projectionMatrix;
                 ShadowSplitData splitData;
-                if (!culling.ComputeSpotShadowMatricesAndCullingPrimitives(i, out viewMatrix, out projectionMatrix, out splitData))
+
+                bool validShadows;
+
+                if (shadowData[i].z > 0)
+                    validShadows = culling.ComputeDirectionalShadowMatricesAndCullingPrimitives(i, 0, 1, Vector3.right, (int)tileSize, culling.visibleLights[i].light.shadowNearPlane, out viewMatrix, out projectionMatrix, out splitData);
+                else
+                    validShadows = culling.ComputeSpotShadowMatricesAndCullingPrimitives(i, out viewMatrix, out projectionMatrix, out splitData);
+
+                if (!validShadows)
                 {
                     shadowData[i].x = 0f;
                     continue;
@@ -333,6 +342,11 @@ namespace MyRP
 
                 //正式draw
                 var shadowSettings = new ShadowDrawingSettings(culling, i);
+                var shadowSettingSplitData = shadowSettings.splitData;
+                //对于方向光而言，cullingSphere包含了需要渲染进阴影图的所有物体，减少不必要物体的渲染
+                shadowSettingSplitData.cullingSphere = splitData.cullingSphere;
+                shadowSettings.splitData = shadowSettingSplitData;
+
                 context.DrawShadows(ref shadowSettings);
 
                 if (SystemInfo.usesReversedZBuffer)
@@ -377,6 +391,19 @@ namespace MyRP
             shadowBuffer.EndSample(commandShadowBufferName);
             context.ExecuteCommandBuffer(shadowBuffer);
             shadowBuffer.Clear();
+        }
+
+        Vector4 ConfigureShadows(int lightIndex, Light shadowLight)
+        {
+            Vector4 shadow = Vector4.zero;
+            Bounds shadowBounds;
+            if (shadowLight.shadows != LightShadows.None && culling.GetShadowCasterBounds(lightIndex, out shadowBounds))
+            {
+                shadowTileCount += 1;
+                shadow.x = shadowLight.shadowStrength;
+                shadow.y = shadowLight.shadows == LightShadows.Soft ? 1f : 0f;
+            }
+            return shadow;
         }
     }
 }

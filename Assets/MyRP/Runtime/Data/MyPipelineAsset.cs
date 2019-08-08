@@ -16,6 +16,10 @@ namespace MyRP
         [SerializeField]
         bool instancing = false;
 
+        //阴影距离
+        [SerializeField]
+        float shadowDistance = 100f;
+
         public enum ShadowMapSize
         {
             _256 = 256,
@@ -30,7 +34,7 @@ namespace MyRP
 
         protected override RenderPipeline CreatePipeline()
         {
-            return new MyPipeline(dynamicBatching, instancing, (int)shadowMapSize);
+            return new MyPipeline(dynamicBatching, instancing, (int)shadowMapSize, shadowDistance);
         }
 
     }
