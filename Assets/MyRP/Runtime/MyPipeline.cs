@@ -31,7 +31,7 @@ namespace MyRP
         bool enableGPUInstancing;
 
         //shadowMap的阴影贴图
-        RenderTexture shadowMap;
+        RenderTexture shadowMap, cascadedShadowMap;
         //阴影贴图尺寸
         int shadowMapSize;
         //阴影距离
@@ -50,6 +50,7 @@ namespace MyRP
         static int shadowMapSizeId = Shader.PropertyToID("_ShadowMapSize");
         static int shadowDataId = Shader.PropertyToID("_ShadowData");
         static int globalShadowDataId = Shader.PropertyToID("_GlobalShadowData");
+        static int cascadeShadowMapId = Shader.PropertyToID("_CascadeShadowMap");
 
         Vector4[] visibleLightColors = new Vector4[maxVisibleLights];
         Vector4[] visibleLightDirectionsOrPositions = new Vector4[maxVisibleLights];
@@ -61,7 +62,14 @@ namespace MyRP
         //阴影图的数量
         int shadowTileCount;
 
-        public MyPipeline(bool dynamicBatching, bool instancing, int shadowMapSize, float shadowDistance)
+        //级联阴影
+        int shadowCascades;
+        Vector3 shadowCascadeSplit;
+
+        //是否有满足条件的主光源
+        bool mainLightExists;
+
+        public MyPipeline(bool dynamicBatching, bool instancing, int shadowMapSize, float shadowDistance, int shadowCascades, Vector3 shadowCascadeSplit)
         {
             //light的强度值使用线性空间
             GraphicsSettings.lightsUseLinearIntensity = true;
@@ -69,6 +77,8 @@ namespace MyRP
             enableGPUInstancing = instancing;
             this.shadowMapSize = shadowMapSize;
             this.shadowDistance = shadowDistance;
+            this.shadowCascades = shadowCascades;
+            this.shadowCascadeSplit = shadowCascadeSplit;
         }
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
@@ -167,6 +177,11 @@ namespace MyRP
                 RenderTexture.ReleaseTemporary(shadowMap);
                 shadowMap = null;
             }
+            if (cascadedShadowMap)
+            {
+                RenderTexture.ReleaseTemporary(cascadedShadowMap);
+                cascadedShadowMap = null;
+            }
         }
 
         [Conditional("DEVELOPMENT_BUILD"), Conditional("UNITY_EDITOR")]
@@ -193,6 +208,7 @@ namespace MyRP
         //存入可见的方向光信息
         void ConfigureLights()
         {
+            mainLightExists = false;
             shadowTileCount = 0;
             for (int i = 0; i < culling.visibleLights.Length; ++i)
             {
@@ -216,6 +232,14 @@ namespace MyRP
 
                     //用z通道为1来表示存储的是方向光的数据
                     shadow.z = 1;
+
+                    //判断是否是满足条件的主光源
+                    if (i == 0 && shadow.x > 0f && shadowCascades > 0)
+                    {
+                        mainLightExists = true;
+                        //级联阴影贴图不会使用其他阴影一样的贴图
+                        shadowTileCount -= 1;
+                    }
                 }
                 else
                 {
@@ -284,12 +308,7 @@ namespace MyRP
             Rect tileViewport = new Rect(0f, 0f, tileSize, tileSize);
 
             //设置shadowMap贴图的
-            shadowMap = RenderTexture.GetTemporary(shadowMapSize, shadowMapSize, 16, RenderTextureFormat.Shadowmap);
-            shadowMap.filterMode = FilterMode.Bilinear;
-            shadowMap.wrapMode = TextureWrapMode.Clamp;
-
-            //告诉GPU设置rt
-            CoreUtils.SetRenderTarget(shadowBuffer, shadowMap, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, ClearFlag.Depth);
+            shadowMap = SetShadowRenderTarget();
             shadowBuffer.BeginSample(commandShadowBufferName);
             shadowBuffer.SetGlobalVector(globalShadowDataId, new Vector4(tileScale, shadowDistance * shadowDistance));
             context.ExecuteCommandBuffer(shadowBuffer);
@@ -298,7 +317,7 @@ namespace MyRP
             int tileIndex = 0;
             bool hardShadows = false;
             bool softShadows = false;
-            for (int i = 0; i < culling.visibleLights.Length; ++i)
+            for (int i = mainLightExists ? 1 : 0; i < culling.visibleLights.Length; ++i)
             {
                 if (i == maxVisibleLights)
                     break;
@@ -326,16 +345,9 @@ namespace MyRP
                 }
 
                 //将16个灯光的阴影图渲染到一个rt上，将rt分成16分
-                float tileOffsetX = tileIndex % split;
-                float tileOffsetY = tileIndex / split;
-                tileViewport.x = tileOffsetX * tileSize;
-                tileViewport.y = tileOffsetY * tileSize;
-                shadowData[i].z = tileOffsetX * tileScale;
-                shadowData[i].w = tileOffsetY * tileScale;
-
-                shadowBuffer.SetViewport(tileViewport);
-                //将16分阴影图用一个间隔隔开，避免采样时的差值错误
-                shadowBuffer.EnableScissorRect(new Rect(tileViewport.x + 4f, tileViewport.y + 4f, tileSize - 8f, tileSize - 8f));
+                Vector2 tileOffset = ConfigureShadowTile(tileIndex, split, tileSize);
+                shadowData[i].z = tileOffset.x * tileScale;
+                shadowData[i].w = tileOffset.y * tileScale;
 
                 shadowBuffer.SetViewProjectionMatrices(viewMatrix, projectionMatrix);
                 shadowBuffer.SetGlobalFloat(shadowBiasId, culling.visibleLights[i].light.shadowBias);
@@ -351,15 +363,7 @@ namespace MyRP
 
                 context.DrawShadows(ref shadowSettings);
 
-                if (SystemInfo.usesReversedZBuffer)
-                {
-                    projectionMatrix.m20 = -projectionMatrix.m20;
-                    projectionMatrix.m21 = -projectionMatrix.m21;
-                    projectionMatrix.m22 = -projectionMatrix.m22;
-                    projectionMatrix.m23 = -projectionMatrix.m23;
-                }
-                var scaleOffset = Matrix4x4.TRS(Vector3.one * 0.5f, Quaternion.identity, Vector3.one * 0.5f);
-                worldToShadowMatrices[i] = scaleOffset * (projectionMatrix * viewMatrix);
+                CalculateWorldToShadowMatrix(ref viewMatrix, ref projectionMatrix, out worldToShadowMatrices[i]);
 
                 tileIndex += 1;
 
@@ -396,6 +400,45 @@ namespace MyRP
                 shadow.y = shadowLight.shadows == LightShadows.Soft ? 1f : 0f;
             }
             return shadow;
+        }
+
+        RenderTexture SetShadowRenderTarget()
+        {
+            RenderTexture texture = RenderTexture.GetTemporary(shadowMapSize, shadowMapSize, 16, RenderTextureFormat.Shadowmap);
+            texture.filterMode = FilterMode.Bilinear;
+            texture.wrapMode = TextureWrapMode.Clamp;
+
+            CoreUtils.SetRenderTarget(shadowBuffer, texture, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, ClearFlag.Depth);
+
+            return texture;
+        }
+
+        Vector2 ConfigureShadowTile(int tileIndex, int split, float tileSize)
+        {
+            Vector2 tileOffset;
+            tileOffset.x = tileIndex % split;
+            tileOffset.y = tileIndex / split;
+            var tileViewport = new Rect(tileOffset.x * tileSize, tileOffset.y * tileSize, tileSize, tileSize);
+            shadowBuffer.SetViewport(tileViewport);
+            shadowBuffer.EnableScissorRect(new Rect(tileViewport.x + 4f, tileViewport.y + 4f, tileSize - 8f, tileSize - 8f));
+
+            return tileOffset;
+        }
+
+        void CalculateWorldToShadowMatrix(ref Matrix4x4 viewMatrix, ref Matrix4x4 projectionMatrix, out Matrix4x4 worldToShadowMatrix)
+        {
+            if (SystemInfo.usesReversedZBuffer)
+            {
+                projectionMatrix.m20 = -projectionMatrix.m20;
+                projectionMatrix.m21 = -projectionMatrix.m21;
+                projectionMatrix.m22 = -projectionMatrix.m22;
+                projectionMatrix.m23 = -projectionMatrix.m23;
+            }
+
+            var scaleOffset = Matrix4x4.identity;
+            scaleOffset.m00 = scaleOffset.m11 = scaleOffset.m22 = 0.5f;
+            scaleOffset.m03 = scaleOffset.m13 = scaleOffset.m23 = 0.5f;
+            worldToShadowMatrix = scaleOffset * (projectionMatrix * viewMatrix);
         }
     }
 }

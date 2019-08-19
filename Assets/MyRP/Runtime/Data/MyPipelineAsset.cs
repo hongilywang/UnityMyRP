@@ -51,7 +51,8 @@ namespace MyRP
 
         protected override RenderPipeline CreatePipeline()
         {
-            return new MyPipeline(dynamicBatching, instancing, (int)shadowMapSize, shadowDistance);
+            Vector3 shadowCascadeSplit = shadowCascades == ShadowCascades.Four ? fourCascadesSplit : new Vector3(twoCascadesSplit, 0f);
+            return new MyPipeline(dynamicBatching, instancing, (int)shadowMapSize, shadowDistance, (int)shadowCascades, shadowCascadeSplit);
         }
 
     }
