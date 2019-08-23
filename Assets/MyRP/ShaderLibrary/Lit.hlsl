@@ -29,13 +29,19 @@ CBUFFER_END
 
 CBUFFER_START(_ShadowBuffer)
     float4x4 _WorldToShadowMatrixs[MAX_VISIBLE_LIGHT];
+    float4x4 _WorldToShadowCascadeMatrices[4];
     float4 _ShadowData[MAX_VISIBLE_LIGHT];
     float4 _ShadowMapSize;
+    float4 _CascadedShadowMapSize;
     float4 _GlobalShadowData;
+    float _CascadedShadowStrength;
 CBUFFER_END
 
 TEXTURE2D_SHADOW(_ShadowMap);
 SAMPLER_CMP(sampler_ShadowMap);
+
+TEXTURE2D_SHADOW(_CascadeShadowMap);
+SAMPLER_CMP(sampler_CascadeShadowMap);
 
 float DistanceToCameraSqr(float3 worldPos)
 {
@@ -43,22 +49,48 @@ float DistanceToCameraSqr(float3 worldPos)
     return dot(cameraToFragment, cameraToFragment);
 }
 
-float HardShadowAttenuation(float4 shadowPos)
+float HardShadowAttenuation(float4 shadowPos, bool cascade = false)
 {
-    return SAMPLE_TEXTURE2D_SHADOW(_ShadowMap, sampler_ShadowMap, shadowPos.xyz);
+    if (cascade)
+    {
+        return SAMPLE_TEXTURE2D_SHADOW(_CascadeShadowMap, sampler_CascadeShadowMap, shadowPos.xyz);
+    }
+    else
+    {
+        return SAMPLE_TEXTURE2D_SHADOW(_ShadowMap, sampler_ShadowMap, shadowPos.xyz);
+    }
 }
 
-float SoftShadowAttenuation(float4 shadowPos)
+float SoftShadowAttenuation(float4 shadowPos, bool cascade = false)
 {
     real tentWeights[9];
     real2 tentUVs[9];
-    SampleShadow_ComputeSamples_Tent_5x5(_ShadowMapSize, shadowPos.xy, tentWeights, tentUVs);
+    float4 size = cascade ? _CascadedShadowMapSize : _ShadowMapSize;
+    SampleShadow_ComputeSamples_Tent_5x5(size, shadowPos.xy, tentWeights, tentUVs);
     float attenuation = 0;
     for (int i = 0; i < 9; i++)
     {
-        attenuation += tentWeights[i] * SAMPLE_TEXTURE2D_SHADOW(_ShadowMap, sampler_ShadowMap, float3(tentUVs[i].xy, shadowPos.z));
+        attenuation += tentWeights[i] * HardShadowAttenuation(float4(tentUVs[i].xy, shadowPos.z, 0), cascade);
     }
     return attenuation;
+}
+
+float CascadedShadowAttenuation(float3 worldPos)
+{
+    #if !defined(_CASCADED_SHADOWS_HARD) && !defined(_CASCADED_SHADOWS_SOFT)
+        return 1.0;
+    #endif
+
+    float cascadeIndex = 2;
+    float4 shadowPos = mul(_WorldToShadowCascadeMatrices[cascadeIndex], float4(worldPos, 1.0));
+    float attenuation;
+    #if defined(_CASCADED_SHADOWS_HARD)
+        attenuation = HardShadowAttenuation(shadowPos, true);
+    #else
+        attenuation = SoftShadowAttenuation(shadowPos, true);
+    #endif
+
+    return lerp(1, attenuation, _CascadedShadowStrength);
 }
 
 float ShadowAttenuation(int index, float3 worldPos)
@@ -104,6 +136,16 @@ int GetPerObjectLightIndex(int index, int lightIndicesIndex)
     half2 lightIndex2 = (index < 2.0h) ? unity_LightIndices[lightIndicesIndex].xy : unity_LightIndices[lightIndicesIndex].zw;
     half i_rem = (index < 2.0h) ? index : index - 2.0h;
     return (i_rem < 1.0h) ? lightIndex2.x : lightIndex2.y;
+}
+
+float3 MainLight(float3 normal, float3 worldPos)
+{
+    float shadowAttenuation = CascadedShadowAttenuation(worldPos);
+    float3 lightColor = _VisibleLightColors[0].rgb;
+    float3 lightDirection = _VisibleLightDirectionsOrPositions[0].xyz;
+    float diffuse = saturate(dot(normal, lightDirection));
+    diffuse *= shadowAttenuation;
+    return diffuse * lightColor;
 }
 ////////////////////////////////////////
 

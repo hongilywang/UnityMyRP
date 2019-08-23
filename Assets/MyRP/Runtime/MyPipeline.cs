@@ -11,6 +11,8 @@ namespace MyRP
         //
         const string shadowsHardKeyword = "_SHADOWS_HARD";
         const string shadowsSoftKeyword = "_SHADOWS_SOFT";
+        const string cascadedShadowsHardKeyword = "_CASCADED_SHADOWS_HARD";
+        const string cascadedShadowsSoftKeyword = "_CASCADED_SHADOWS_SOFT";
 
         //创建command buffer
         const string commandCameraBufferName = "MyRP Render Camera";
@@ -51,6 +53,9 @@ namespace MyRP
         static int shadowDataId = Shader.PropertyToID("_ShadowData");
         static int globalShadowDataId = Shader.PropertyToID("_GlobalShadowData");
         static int cascadeShadowMapId = Shader.PropertyToID("_CascadeShadowMap");
+        static int worldToShadowCascadeMatricesId = Shader.PropertyToID("_WorldToShadowCascadeMatrices");
+        static int cascadedShadowMapSizeId = Shader.PropertyToID("_CascadedShadowMapSize");
+        static int cascadedShadowStrengthId = Shader.PropertyToID("_CascadedShadowStrength");
 
         Vector4[] visibleLightColors = new Vector4[maxVisibleLights];
         Vector4[] visibleLightDirectionsOrPositions = new Vector4[maxVisibleLights];
@@ -58,6 +63,7 @@ namespace MyRP
         Vector4[] visibleLightSpotDirections = new Vector4[maxVisibleLights];
         Vector4[] shadowData = new Vector4[maxVisibleLights];
         Matrix4x4[] worldToShadowMatrices = new Matrix4x4[maxVisibleLights];
+        Matrix4x4[] worldToShadowCascadeMatrices = new Matrix4x4[4];
 
         //阴影图的数量
         int shadowTileCount;
@@ -105,6 +111,16 @@ namespace MyRP
             if (culling.visibleLights.Length > 0)
             {
                 ConfigureLights();
+                if (mainLightExists)
+                {
+                    RenderCascadedShadows(context);
+                }
+                else
+                {
+                    CoreUtils.SetKeyword(cameraBuffer, cascadedShadowsHardKeyword, false);
+                    CoreUtils.SetKeyword(cameraBuffer, cascadedShadowsSoftKeyword, false);
+                }
+
                 if (shadowTileCount > 0)
                 {
                     RenderShadows(context);
@@ -120,6 +136,8 @@ namespace MyRP
                 Shader.SetGlobalVector(unity_LightDataId, Vector4.zero);
                 CoreUtils.SetKeyword(cameraBuffer, shadowsHardKeyword, false);
                 CoreUtils.SetKeyword(cameraBuffer, shadowsSoftKeyword, false);
+                CoreUtils.SetKeyword(cameraBuffer, cascadedShadowsHardKeyword, false);
+                CoreUtils.SetKeyword(cameraBuffer, cascadedShadowsSoftKeyword, false);
             }
             ConfigureLights();
 
@@ -383,6 +401,56 @@ namespace MyRP
             shadowBuffer.SetGlobalVectorArray(shadowDataId, shadowData);
             float invShadowMapSize = 1f / shadowMapSize;
             shadowBuffer.SetGlobalVector(shadowMapSizeId, new Vector4(invShadowMapSize, invShadowMapSize, invShadowMapSize, invShadowMapSize));
+
+            shadowBuffer.EndSample(commandShadowBufferName);
+            context.ExecuteCommandBuffer(shadowBuffer);
+            shadowBuffer.Clear();
+        }
+
+        void RenderCascadedShadows(ScriptableRenderContext context)
+        {
+            float tileSize = shadowMapSize / 2;
+            cascadedShadowMap = SetShadowRenderTarget();
+            shadowBuffer.BeginSample(commandShadowBufferName);
+            context.ExecuteCommandBuffer(shadowBuffer);
+            shadowBuffer.Clear();
+            Light shadowLight = culling.visibleLights[0].light;
+            shadowBuffer.SetGlobalFloat(shadowBiasId, shadowLight.shadowBias);
+            var shadowSettings = new ShadowDrawingSettings(culling, 0);
+            var tileMatrix = Matrix4x4.identity;
+            tileMatrix.m00 = tileMatrix.m11 = 0.5f;
+
+            for (int i = 0; i < shadowCascades; ++i)
+            {
+                Matrix4x4 viewMatrix, projectionMatrix;
+                ShadowSplitData splitData;
+                culling.ComputeDirectionalShadowMatricesAndCullingPrimitives(0, i, shadowCascades, shadowCascadeSplit, (int)tileSize, shadowLight.shadowNearPlane, out viewMatrix, out projectionMatrix, out splitData);
+
+                Vector2 tileOffset = ConfigureShadowTile(i, 2, tileSize);
+                shadowBuffer.SetViewProjectionMatrices(viewMatrix, projectionMatrix);
+                context.ExecuteCommandBuffer(shadowBuffer);
+                shadowBuffer.Clear();
+
+                var shadowSettingSplitData = shadowSettings.splitData;
+                //对于方向光而言，cullingSphere包含了需要渲染进阴影图的所有物体，减少不必要物体的渲染
+                shadowSettingSplitData.cullingSphere = splitData.cullingSphere;
+                shadowSettings.splitData = shadowSettingSplitData;
+                context.DrawShadows(ref shadowSettings);
+                CalculateWorldToShadowMatrix(ref viewMatrix, ref projectionMatrix, out worldToShadowCascadeMatrices[i]);
+                tileMatrix.m03 = tileOffset.x * 0.5f;
+                tileMatrix.m13 = tileOffset.y * 0.5f;
+                worldToShadowCascadeMatrices[i] = tileMatrix * worldToShadowCascadeMatrices[i];
+            }
+
+            shadowBuffer.DisableScissorRect();
+            shadowBuffer.SetGlobalTexture(cascadeShadowMapId, cascadedShadowMap);
+            shadowBuffer.SetGlobalMatrixArray(worldToShadowCascadeMatricesId, worldToShadowCascadeMatrices);
+            float invShadowMapSize = 1f / shadowMapSize;
+            shadowBuffer.SetGlobalVector(cascadedShadowMapSizeId, new Vector4(invShadowMapSize, invShadowMapSize, shadowMapSize, shadowMapSize));
+            shadowBuffer.SetGlobalFloat(cascadedShadowStrengthId, shadowLight.shadowStrength);
+            bool hard = shadowLight.shadows == LightShadows.Hard;
+            CoreUtils.SetKeyword(shadowBuffer, cascadedShadowsHardKeyword, hard);
+            CoreUtils.SetKeyword(shadowBuffer, cascadedShadowsSoftKeyword, !hard);
 
             shadowBuffer.EndSample(commandShadowBufferName);
             context.ExecuteCommandBuffer(shadowBuffer);
