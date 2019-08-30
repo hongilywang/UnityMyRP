@@ -56,6 +56,7 @@ namespace MyRP
         static int worldToShadowCascadeMatricesId = Shader.PropertyToID("_WorldToShadowCascadeMatrices");
         static int cascadedShadowMapSizeId = Shader.PropertyToID("_CascadedShadowMapSize");
         static int cascadedShadowStrengthId = Shader.PropertyToID("_CascadedShadowStrength");
+        static int cascadeCullingSpheresId = Shader.PropertyToID("_CascadeCullingSpheres");
 
         Vector4[] visibleLightColors = new Vector4[maxVisibleLights];
         Vector4[] visibleLightDirectionsOrPositions = new Vector4[maxVisibleLights];
@@ -63,7 +64,9 @@ namespace MyRP
         Vector4[] visibleLightSpotDirections = new Vector4[maxVisibleLights];
         Vector4[] shadowData = new Vector4[maxVisibleLights];
         Matrix4x4[] worldToShadowMatrices = new Matrix4x4[maxVisibleLights];
-        Matrix4x4[] worldToShadowCascadeMatrices = new Matrix4x4[4];
+        Matrix4x4[] worldToShadowCascadeMatrices = new Matrix4x4[5];
+        //级联阴影的裁剪球
+        Vector4[] cascadeCullingSphere = new Vector4[4];
 
         //阴影图的数量
         int shadowTileCount;
@@ -79,6 +82,9 @@ namespace MyRP
         {
             //light的强度值使用线性空间
             GraphicsSettings.lightsUseLinearIntensity = true;
+            if (SystemInfo.usesReversedZBuffer)
+                worldToShadowCascadeMatrices[4].m33 = 1f;
+
             enableDynamicBatching = dynamicBatching;
             enableGPUInstancing = instancing;
             this.shadowMapSize = shadowMapSize;
@@ -298,9 +304,12 @@ namespace MyRP
             }
 
             //排除多余的light
-            if (culling.visibleLights.Length > maxVisibleLights)
+            if (mainLightExists || culling.visibleLights.Length > maxVisibleLights)
             {
                 NativeArray<int> lightIndices = culling.GetLightIndexMap(Allocator.Temp);
+                if (mainLightExists)
+                    lightIndices[0] = -1;
+
                 for (int i = maxVisibleLights; i < culling.visibleLights.Length; ++i)
                     lightIndices[i] = -1;
 
@@ -433,7 +442,8 @@ namespace MyRP
 
                 var shadowSettingSplitData = shadowSettings.splitData;
                 //对于方向光而言，cullingSphere包含了需要渲染进阴影图的所有物体，减少不必要物体的渲染
-                shadowSettingSplitData.cullingSphere = splitData.cullingSphere;
+                cascadeCullingSphere[i] = shadowSettingSplitData.cullingSphere = splitData.cullingSphere;
+                cascadeCullingSphere[i].w *= splitData.cullingSphere.w;
                 shadowSettings.splitData = shadowSettingSplitData;
                 context.DrawShadows(ref shadowSettings);
                 CalculateWorldToShadowMatrix(ref viewMatrix, ref projectionMatrix, out worldToShadowCascadeMatrices[i]);
@@ -444,6 +454,7 @@ namespace MyRP
 
             shadowBuffer.DisableScissorRect();
             shadowBuffer.SetGlobalTexture(cascadeShadowMapId, cascadedShadowMap);
+            shadowBuffer.SetGlobalVectorArray(cascadeCullingSpheresId, cascadeCullingSphere);
             shadowBuffer.SetGlobalMatrixArray(worldToShadowCascadeMatricesId, worldToShadowCascadeMatrices);
             float invShadowMapSize = 1f / shadowMapSize;
             shadowBuffer.SetGlobalVector(cascadedShadowMapSizeId, new Vector4(invShadowMapSize, invShadowMapSize, shadowMapSize, shadowMapSize));

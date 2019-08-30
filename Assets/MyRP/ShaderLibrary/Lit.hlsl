@@ -29,7 +29,8 @@ CBUFFER_END
 
 CBUFFER_START(_ShadowBuffer)
     float4x4 _WorldToShadowMatrixs[MAX_VISIBLE_LIGHT];
-    float4x4 _WorldToShadowCascadeMatrices[4];
+    float4x4 _WorldToShadowCascadeMatrices[5];
+    float4 _CascadeCullingSpheres[4];
     float4 _ShadowData[MAX_VISIBLE_LIGHT];
     float4 _ShadowMapSize;
     float4 _CascadedShadowMapSize;
@@ -42,6 +43,12 @@ SAMPLER_CMP(sampler_ShadowMap);
 
 TEXTURE2D_SHADOW(_CascadeShadowMap);
 SAMPLER_CMP(sampler_CascadeShadowMap);
+
+float InsideCasecadeCullingSphere(int index, float3 worldPos)
+{
+    float4 s = _CascadeCullingSpheres[index];
+    return dot(worldPos - s.xyz, worldPos - s.xyz) < s.w;
+}
 
 float DistanceToCameraSqr(float3 worldPos)
 {
@@ -81,7 +88,21 @@ float CascadedShadowAttenuation(float3 worldPos)
         return 1.0;
     #endif
 
-    float cascadeIndex = 2;
+    float4 cascadeFlags = float4(
+        InsideCasecadeCullingSphere(0, worldPos),
+        InsideCasecadeCullingSphere(1, worldPos),
+        InsideCasecadeCullingSphere(2, worldPos),
+        InsideCasecadeCullingSphere(3, worldPos)
+    );
+    //可以可视化的看到级联阴影的范围
+    //return dot(cascadeFlags, 0.25);
+    //(1,1,1,1) -> (1,0,0,0) -> 0
+    //(0,1,1,1) -> (0,1,0,0) -> 1
+    //(0,0,1,1) -> (0,0,1,0) -> 2
+    //(0,0,0,1) -> (0,0,0,1) -> 3
+    //(0,0,0,0) -> (0,0,0,0) -> 0
+    cascadeFlags.yzw = saturate(cascadeFlags.yzw - cascadeFlags.xyz);
+    float cascadeIndex = 4 - dot(cascadeFlags, float4(4, 3, 2, 1));
     float4 shadowPos = mul(_WorldToShadowCascadeMatrices[cascadeIndex], float4(worldPos, 1.0));
     float attenuation;
     #if defined(_CASCADED_SHADOWS_HARD)
@@ -99,7 +120,7 @@ float ShadowAttenuation(int index, float3 worldPos)
         return 1.0;
     #endif
 
-    if (_ShadowData[index].x <= 0 || DistanceToCameraSqr(worldPos) > _GlobalShadowData.y)
+    if (DistanceToCameraSqr(worldPos) > _GlobalShadowData.y)
         return 1.0;
 
     float4 shadowPos = mul(_WorldToShadowMatrixs[index], float4(worldPos, 1.0));
@@ -231,7 +252,11 @@ float4 LitPassFragment (VertexOutput input) : SV_TARGET
     input.normal = normalize(input.normal);
     float3 albedo = UNITY_ACCESS_INSTANCED_PROP(PerInstance, _Color).rgb;
 
-    float3 diffuseLight = 0;
+    float3 diffuseLight = input.vertexLighting;
+    #if defined(_CASCADED_SHADOWS_HARD) || defined(_CASCADED_SHADOWS_SOFT)
+        diffuseLight += MainLight(input.normal, input.worldPos);
+    #endif
+
     for (int i = 0; i < min(unity_LightData.y, 4); i++)
     {
         int lightIndex = GetPerObjectLightIndex(i, 0);
