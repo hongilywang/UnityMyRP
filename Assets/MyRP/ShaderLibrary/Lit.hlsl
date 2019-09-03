@@ -257,14 +257,17 @@ VertexOutput LitPassVertex (VertexInput input)
     return output;
 }
 
-float4 LitPassFragment (VertexOutput input) : SV_TARGET
+float4 LitPassFragment (VertexOutput input, FRONT_FACE_TYPE isFrontFace : FRONT_FACE_SEMANTIC) : SV_TARGET
 {
     UNITY_SETUP_INSTANCE_ID(input);
     input.normal = normalize(input.normal);
+    input.normal = IS_FRONT_VFACE(isFrontFace, input.normal, -input.normal);
 
     float4 albedoAlpha = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
     albedoAlpha *= UNITY_ACCESS_INSTANCED_PROP(PerInstance, _Color);
-    clip(albedoAlpha.a - _Cutoff);
+    #if defined(_CLIPPING)
+        clip(albedoAlpha.a - _Cutoff);
+    #endif
 
     float3 diffuseLight = input.vertexLighting;
     #if defined(_CASCADED_SHADOWS_HARD) || defined(_CASCADED_SHADOWS_SOFT)
