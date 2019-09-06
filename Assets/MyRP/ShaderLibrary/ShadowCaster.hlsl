@@ -65,7 +65,7 @@ VertexOutput ShadowCasterPassVertex (VertexInput input)
 float4 ShadowCasterPassFragment (VertexOutput input) : SV_TARGET
 {
     UNITY_SETUP_INSTANCE_ID(input);
-    #if defined(_CLIPPING)
+    #if !defined(_CLIPPING_OFF)
         float alpha = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv).a;
         alpha *= UNITY_ACCESS_INSTANCED_PROP(PerInstance, _Color).a;
         clip(alpha - _Cutoff);
