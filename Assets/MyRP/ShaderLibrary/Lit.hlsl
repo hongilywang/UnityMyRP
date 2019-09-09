@@ -92,7 +92,9 @@ float SoftShadowAttenuation(float4 shadowPos, bool cascade = false)
 
 float CascadedShadowAttenuation(float3 worldPos)
 {
-    #if !defined(_CASCADED_SHADOWS_HARD) && !defined(_CASCADED_SHADOWS_SOFT)
+    #if !defined(_RECEIVE_SHADOWS)
+        return 1.0;
+    #elif !defined(_CASCADED_SHADOWS_HARD) && !defined(_CASCADED_SHADOWS_SOFT)
         return 1.0;
     #endif
 
@@ -124,7 +126,9 @@ float CascadedShadowAttenuation(float3 worldPos)
 
 float ShadowAttenuation(int index, float3 worldPos)
 {
-    #if !defined(_SHADOWS_HARD) && !defined(_SHADOWS_SOFT)
+    #if !defined(_RECEIVE_SHADOWS)
+        return 1.0;
+    #elif !defined(_SHADOWS_HARD) && !defined(_SHADOWS_SOFT)
         return 1.0;
     #endif
 
