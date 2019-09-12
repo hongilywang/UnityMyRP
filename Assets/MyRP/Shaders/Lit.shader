@@ -66,4 +66,6 @@
 			  ENDHLSL
       }
     }
+
+  CustomEditor "LitShaderGUI"
 }
