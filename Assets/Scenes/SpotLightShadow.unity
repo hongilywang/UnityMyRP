@@ -657,7 +657,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.8584906, g: 0.61784893, b: 0.14983091, a: 1}
-  smoothness: 0.5
+  smoothness: 0.792
 --- !u!135 &735731024
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1161,7 +1161,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.6509434, g: 0.107467055, b: 0.55462885, a: 1}
-  smoothness: 0.811
+  smoothness: 0.872
 --- !u!135 &907439757
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1228,13 +1228,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 907439755}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: 0.9101444, w: 0.41429117}
   m_LocalPosition: {x: -18.1, y: 3.4, z: 0}
   m_LocalScale: {x: 10, y: 10, z: 10}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 10
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 131.05101}
 --- !u!1 &1092110273
 GameObject:
   m_ObjectHideFlags: 0
@@ -1268,7 +1268,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.16073336, g: 0.7924528, b: 0.7598763, a: 1}
-  smoothness: 0.5
+  smoothness: 0.796
 --- !u!135 &1092110275
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1419,7 +1419,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1173353040}
   m_LocalRotation: {x: 0.09051498, y: -0, z: -0, w: 0.9958951}
-  m_LocalPosition: {x: 36.2, y: 41.8, z: -73.2}
+  m_LocalPosition: {x: 22.2, y: 41.9, z: -73.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -1763,7 +1763,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.48636866, g: 0.8018868, b: 0.45768067, a: 1}
-  smoothness: 0.508
+  smoothness: 0.644
 --- !u!135 &2118857339
 SphereCollider:
   m_ObjectHideFlags: 0
