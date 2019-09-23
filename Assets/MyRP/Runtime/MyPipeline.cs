@@ -178,6 +178,8 @@ namespace MyRP
             if (culling.visibleLights.Length > 0)
                 drawingSettings.perObjectData = PerObjectData.LightIndices | PerObjectData.LightData;
 
+            drawingSettings.perObjectData |= PerObjectData.LightProbe | PerObjectData.ReflectionProbes;
+
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque, -1);
             context.DrawRenderers(culling, ref drawingSettings, ref filteringSettings);
 

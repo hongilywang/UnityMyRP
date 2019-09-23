@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
+  m_IndirectSpecularColor: {r: 0.18378153, g: 0.22834533, b: 0.29978105, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -96,7 +96,8 @@ LightmapSettings:
     m_PVRFilteringAtrousPositionSigmaAO: 1
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
-  m_LightingDataAsset: {fileID: 0}
+  m_LightingDataAsset: {fileID: 112000000, guid: 5bcc73483f6475e499218603e349373d,
+    type: 2}
   m_UseShadowmask: 1
 --- !u!196 &4
 NavMeshSettings:
@@ -244,6 +245,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.13381095, g: 0.3003501, b: 0.9150943, a: 1}
+  smoothness: 0.5
 --- !u!65 &254080950
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -441,6 +443,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.13381095, g: 0.3003501, b: 0.9150943, a: 1}
+  smoothness: 0.5
 --- !u!65 &418480871
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -547,6 +550,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.3938451, g: 0.745283, b: 0.3480331, a: 1}
+  smoothness: 0.5
 --- !u!65 &702209169
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -653,6 +657,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.8584906, g: 0.61784893, b: 0.14983091, a: 1}
+  smoothness: 0.5
 --- !u!135 &735731024
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -850,6 +855,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.16073336, g: 0.7924528, b: 0.7598763, a: 1}
+  smoothness: 0.5
 --- !u!135 &773277165
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1030,6 +1036,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.9811321, g: 0.9811321, b: 0.9811321, a: 1}
+  smoothness: 0.5
 --- !u!1 &812695347
 GameObject:
   m_ObjectHideFlags: 0
@@ -1154,6 +1161,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.6509434, g: 0.107467055, b: 0.55462885, a: 1}
+  smoothness: 0.811
 --- !u!135 &907439757
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1260,6 +1268,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.16073336, g: 0.7924528, b: 0.7598763, a: 1}
+  smoothness: 0.5
 --- !u!135 &1092110275
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1409,13 +1418,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1173353040}
-  m_LocalRotation: {x: 0.0033458585, y: 0.9507147, z: -0.30927747, w: -0.021858348}
-  m_LocalPosition: {x: 11.9, y: 60.4, z: 88.8}
+  m_LocalRotation: {x: 0.09051498, y: -0, z: -0, w: 0.9958951}
+  m_LocalPosition: {x: 36.2, y: 41.8, z: -73.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 143.98999, y: 3.0919952, z: -178.592}
+  m_LocalEulerAnglesHint: {x: 10.386001, y: 0, z: 0}
 --- !u!1 &1185117146
 GameObject:
   m_ObjectHideFlags: 0
@@ -1449,6 +1458,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.27990744, g: 0.8396226, b: 0.11485406, a: 1}
+  smoothness: 0.5
 --- !u!135 &1185117148
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1646,6 +1656,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.9245283, g: 0.09158063, b: 0.09158063, a: 1}
+  smoothness: 0.5
 --- !u!65 &1597704649
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1752,6 +1763,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.48636866, g: 0.8018868, b: 0.45768067, a: 1}
+  smoothness: 0.508
 --- !u!135 &2118857339
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1944,6 +1956,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.13381095, g: 0.3003501, b: 0.9150943, a: 1}
+  smoothness: 0.5
 --- !u!114 &5962862914712817807
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1957,6 +1970,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   color: {r: 0.16073336, g: 0.7924528, b: 0.7598763, a: 1}
+  smoothness: 0.5
 --- !u!23 &6306804657801858568
 MeshRenderer:
   m_ObjectHideFlags: 0

@@ -3,6 +3,7 @@
 
 #include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/Common.hlsl"
 #include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/Shadow/ShadowSamplingTent.hlsl"
+#include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/ImageBasedLighting.hlsl"
 #include "Lighting.hlsl"
 
 CBUFFER_START(UnityPerFrame) 
@@ -209,6 +210,17 @@ float3 GenericLight (int index, LitSurface s, float shadowAttenuation)
     return color * lightColor;
 }
 
+float3 SampleEnvironment(LitSurface s)
+{
+    float3 reflectVector = reflect(-s.viewDir, s.normal);
+    float mip = PerceptualRoughnessToMipmapLevel(s.perceptualRoughness);
+    float3 uvw = reflectVector;
+    float4 sampleCube = SAMPLE_TEXTURECUBE_LOD(unity_SpecCube0, samplerunity_SpecCube0, uvw, mip);
+
+    float3 color = sampleCube.rgb;
+    return color;
+}
+
 #define UNITY_MATRIX_M unity_ObjectToWorld
 #include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/UnityInstancing.hlsl"
 
@@ -292,6 +304,7 @@ float4 LitPassFragment (VertexOutput input, FRONT_FACE_TYPE isFrontFace : FRONT_
     }
 
     color = color * albedoAlpha.rgb;
+    color += ReflectEnvironment(surface, SampleEnvironment(surface));
     return float4(color, albedoAlpha.a);
 }
 
