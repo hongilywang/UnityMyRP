@@ -5,14 +5,14 @@ struct LitSurface
 {
     float3 normal, position, viewDir;
     float3 diffuse, specular;
-    float perceptualRoughness, roughness, fresnelStrength;
+    float perceptualRoughness, roughness, fresnelStrength, reflectivity;
     bool perfectDiffuser;
 };
 
 TEXTURECUBE(unity_SpecCube0);
 SAMPLER(samplerunity_SpecCube0);
 
-LitSurface GetLitSurface(float3 normal, float3 position, float3 viewDir, float3 color, float smoothness, bool perfectDiffuser = false)
+LitSurface GetLitSurface(float3 normal, float3 position, float3 viewDir, float3 color, float metallic, float smoothness, bool perfectDiffuser = false)
 {
     LitSurface s;
     s.normal = normal;
@@ -22,18 +22,20 @@ LitSurface GetLitSurface(float3 normal, float3 position, float3 viewDir, float3 
 
     if (perfectDiffuser)
     {
+        s.reflectivity = 0.0;
         smoothness = 0.0;
         s.specular = 0.0;
     }
     else
     {
-        s.specular = 0.04;
+        s.specular = lerp(0.04, color, metallic);
+        s.reflectivity = lerp(0.04, 1.0, metallic);
         s.diffuse *= 1.0 - 0.04;
     }
     s.perfectDiffuser = perfectDiffuser;
     s.perceptualRoughness = 1.0 - smoothness;
     s.roughness = s.perceptualRoughness * s.perceptualRoughness;
-    s.fresnelStrength = smoothness;
+    s.fresnelStrength = saturate(smoothness + s.reflectivity);
     return s;
 }
 
@@ -57,7 +59,7 @@ float3 LightSurface (LitSurface s, float3 lightDir)
 
 LitSurface GetLitSurfaceVertex(float3 normal, float3 position)
 {
-    return GetLitSurface(normal, position, 0, 1, 0, true);
+    return GetLitSurface(normal, position, 0, 1, 0, 0, true);
 }
 
 float3 ReflectEnvironment(LitSurface s, float3 environment)

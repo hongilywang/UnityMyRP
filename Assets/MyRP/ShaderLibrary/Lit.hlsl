@@ -11,7 +11,7 @@ CBUFFER_START(UnityPerFrame)
 CBUFFER_END
 
 CBUFFER_START(UnityPerDraw)
-    float4x4 unity_ObjectToWorld;
+    float4x4 unity_ObjectToWorld, unity_WorldToObject;
     float4 unity_LightData;     //获取有效的灯光数量.y
     float4 unity_LightIndices[2];
 CBUFFER_END
@@ -222,6 +222,7 @@ float3 SampleEnvironment(LitSurface s)
 }
 
 #define UNITY_MATRIX_M unity_ObjectToWorld
+#define UNITY_MATRIX_I_M unity_WorldToObject
 #include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/UnityInstancing.hlsl"
 
 
@@ -232,6 +233,7 @@ float3 SampleEnvironment(LitSurface s)
 //相同材质，不同的颜色属性也可以使用GPU Instance一次绘制
 UNITY_INSTANCING_BUFFER_START(PerInstance)
     UNITY_DEFINE_INSTANCED_PROP(float4, _Color)
+    UNITY_DEFINE_INSTANCED_PROP(float, _Metallic)
     UNITY_DEFINE_INSTANCED_PROP(float, _Smoothness)
 UNITY_INSTANCING_BUFFER_END(PerInstance)
 
@@ -260,7 +262,12 @@ VertexOutput LitPassVertex (VertexInput input)
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     float4 worldPos = mul(UNITY_MATRIX_M, float4(input.pos.xyz, 1.0));
     output.clipPos = mul(unity_MatrixVP, worldPos);
-    output.normal = mul((float3x3)UNITY_MATRIX_M, input.normal);
+    //法线的处理
+    //#if defined(UNITY_ASSUME_UNIFORM_SCALING)
+    //    output.normal = mul((float3x3)UNITY_MATRIX_M, input.normal);
+    //#else
+        output.normal = normalize(mul(input.normal, (float3x3)UNITY_MATRIX_I_M));
+    //#endif
     output.worldPos = worldPos.xyz;
 
     //将不重要的灯光计算放到顶点计算中，减少pxiel的计算
@@ -289,7 +296,8 @@ float4 LitPassFragment (VertexOutput input, FRONT_FACE_TYPE isFrontFace : FRONT_
     #endif
 
     float3 viewDir = normalize(_WorldSpaceCameraPos - input.worldPos.xyz);
-    LitSurface surface = GetLitSurface(input.normal, input.worldPos, viewDir, albedoAlpha.rgb, UNITY_ACCESS_INSTANCED_PROP(PerInstance, _Smoothness));
+    LitSurface surface = GetLitSurface(input.normal, input.worldPos, viewDir, albedoAlpha.rgb,
+    UNITY_ACCESS_INSTANCED_PROP(PerInstance, _Metallic), UNITY_ACCESS_INSTANCED_PROP(PerInstance, _Smoothness));
 
     float3 color = input.vertexLighting * surface.diffuse;
     #if defined(_CASCADED_SHADOWS_HARD) || defined(_CASCADED_SHADOWS_SOFT)
