@@ -10,6 +10,7 @@ struct LitSurface
 };
 
 TEXTURECUBE(unity_SpecCube0);
+TEXTURECUBE(unity_SpecCube1);
 SAMPLER(samplerunity_SpecCube0);
 
 LitSurface GetLitSurface(float3 normal, float3 position, float3 viewDir, float3 color, float metallic, float smoothness, bool perfectDiffuser = false)
@@ -73,6 +74,12 @@ float3 ReflectEnvironment(LitSurface s, float3 environment)
     environment *= lerp(s.specular, s.fresnelStrength, fresnel);
     environment /= s.roughness + 1.0;
     return environment;
+}
+
+void PremultiplyAlpha(inout LitSurface s, inout float alpha)
+{
+    s.diffuse *= alpha;
+    alpha = lerp(alpha, 1, s.reflectivity);
 }
 
 #endif //MYRP_LIGHTING_INCLUDED
