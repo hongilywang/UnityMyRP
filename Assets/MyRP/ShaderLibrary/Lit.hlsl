@@ -19,6 +19,7 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_SpecCube0_ProbePosition, unity_SpecCube0_HDR;
     float4 unity_SpecCube1_BoxMin, unity_SpecCube1_BoxMax;
     float4 unity_SpecCube1_ProbePosition, unity_SpecCube1_HDR;
+    float4 unity_LightmapST;
 CBUFFER_END
 
 CBUFFER_START(UnityPerCamera)
@@ -58,6 +59,9 @@ SAMPLER_CMP(sampler_CascadeShadowMap);
 
 TEXTURE2D(_MainTex);
 SAMPLER(sampler_MainTex);
+
+TEXTURE2D(unity_Lightmap);
+SAMPLER(samplerunity_Lightmap);
 
 float InsideCasecadeCullingSphere(int index, float3 worldPos)
 {
@@ -268,6 +272,7 @@ struct VertexInput
     float4 pos : POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
+    float2 lightmapUV : TEXCOORD1;
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
@@ -278,8 +283,31 @@ struct VertexOutput
     float3 worldPos : TEXCOORD1;
     float3 vertexLighting : TEXCOORD2;
     float2 uv : TEXCOORD3;
+    #if defined(LIGHTMAP_ON)
+        float2 lightmapUV : TEXCOORD4;
+    #endif
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
+
+float3 SampleLightmap(float2 uv)
+{
+    return SampleSingleLightmap(TEXTURE2D_ARGS(unity_Lightmap, samplerunity_Lightmap), uv, float4(1, 1, 0, 0), 
+    #if defined(UNITY_LIGHTMAP_FULL_HDR)
+        false,
+    #else
+        true,
+    #endif
+    float4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0, 0.0)
+    );
+}
+
+float3 GlobalIllumination(VertexOutput input)
+{
+    #if defined(LIGHTMAP_ON)
+        return SampleLightmap(input.lightmapUV);
+    #endif
+    return 0;
+}
 
 VertexOutput LitPassVertex (VertexInput input)
 {
@@ -306,6 +334,9 @@ VertexOutput LitPassVertex (VertexInput input)
     }
 
     output.uv = TRANSFORM_TEX(input.uv, _MainTex);
+    #if defined(LIGHTMAP_ON)
+        output.lightmapUV = input.lightmapUV * unity_LightmapST.xy + unity_LightmapST.zw;
+    #endif
     return output;
 }
 
@@ -342,6 +373,7 @@ float4 LitPassFragment (VertexOutput input, FRONT_FACE_TYPE isFrontFace : FRONT_
 
     color = color * albedoAlpha.rgb;
     color += ReflectEnvironment(surface, SampleEnvironment(surface));
+    color = GlobalIllumination(input);
     return float4(color, albedoAlpha.a);
 }
 
