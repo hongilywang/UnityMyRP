@@ -254,10 +254,10 @@ float3 SampleEnvironment(LitSurface s)
     return color;
 }
 
-#include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/UnityInstancing.hlsl"
-
 #define UNITY_MATRIX_M unity_ObjectToWorld
 #define UNITY_MATRIX_I_M unity_WorldToObject
+
+#include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/UnityInstancing.hlsl"
 
 // CBUFFER_START(UnityPerMaterial)
 //     float4 _Color;
