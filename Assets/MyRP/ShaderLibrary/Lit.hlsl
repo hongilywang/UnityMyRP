@@ -20,6 +20,9 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_SpecCube1_BoxMin, unity_SpecCube1_BoxMax;
     float4 unity_SpecCube1_ProbePosition, unity_SpecCube1_HDR;
     float4 unity_LightmapST;
+    float4 unity_SHAr, unity_SHAg, unity_SHAb;
+    float4 unity_SHBr, unity_SHBg, unity_SHBb;
+    float4 unity_SHC;
 CBUFFER_END
 
 CBUFFER_START(UnityPerCamera)
@@ -251,10 +254,10 @@ float3 SampleEnvironment(LitSurface s)
     return color;
 }
 
-#define UNITY_MATRIX_M unity_ObjectToWorld
-#define UNITY_MATRIX_I_M unity_WorldToObject
 #include "com.unity.render-pipelines.core@6.9.1/ShaderLibrary/UnityInstancing.hlsl"
 
+#define UNITY_MATRIX_M unity_ObjectToWorld
+#define UNITY_MATRIX_I_M unity_WorldToObject
 
 // CBUFFER_START(UnityPerMaterial)
 //     float4 _Color;
@@ -265,6 +268,7 @@ UNITY_INSTANCING_BUFFER_START(PerInstance)
     UNITY_DEFINE_INSTANCED_PROP(float4, _Color)
     UNITY_DEFINE_INSTANCED_PROP(float, _Metallic)
     UNITY_DEFINE_INSTANCED_PROP(float, _Smoothness)
+    UNITY_DEFINE_INSTANCED_PROP(float4, _EmissionColor)
 UNITY_INSTANCING_BUFFER_END(PerInstance)
 
 struct VertexInput 
@@ -301,12 +305,28 @@ float3 SampleLightmap(float2 uv)
     );
 }
 
-float3 GlobalIllumination(VertexOutput input)
+float3 SampleLightProbes(LitSurface s)
+{
+    float4 coefficients[7];
+    coefficients[0] = unity_SHAr;
+    coefficients[1] = unity_SHAg;
+    coefficients[2] = unity_SHAb;
+    coefficients[3] = unity_SHBr;
+    coefficients[4] = unity_SHBg;
+    coefficients[5] = unity_SHBb;
+    coefficients[6] = unity_SHC;
+    return max(0.0, SampleSH9(coefficients, s.normal));
+}
+
+float3 GlobalIllumination(VertexOutput input, LitSurface surface)
 {
     #if defined(LIGHTMAP_ON)
         return SampleLightmap(input.lightmapUV);
+    #else
+        //开启GUP Instance会导致错误
+        return SampleLightProbes(surface);
+        //return float3(0, 0, 0);
     #endif
-    return 0;
 }
 
 VertexOutput LitPassVertex (VertexInput input)
@@ -373,7 +393,8 @@ float4 LitPassFragment (VertexOutput input, FRONT_FACE_TYPE isFrontFace : FRONT_
 
     color = color * albedoAlpha.rgb;
     color += ReflectEnvironment(surface, SampleEnvironment(surface));
-    color = GlobalIllumination(input);
+    color += GlobalIllumination(input, surface) * surface.diffuse;
+    color += UNITY_ACCESS_INSTANCED_PROP(PerInstance, _EmissionColor).rgb;
     return float4(color, albedoAlpha.a);
 }
 

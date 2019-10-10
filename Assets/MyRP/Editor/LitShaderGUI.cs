@@ -94,6 +94,17 @@ public class LitShaderGUI : ShaderGUI
         this.properties = properties;
         CastShadowsToggle();
 
+        //自发光bake的特殊设置处理
+        EditorGUI.BeginChangeCheck();
+        editor.LightmapEmissionProperty();
+        if (EditorGUI.EndChangeCheck())
+        {
+            foreach (Material m in editor.targets)
+            {
+                m.globalIlluminationFlags &= ~MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            }
+        }
+
         EditorGUILayout.Space();
         showPresents = EditorGUILayout.Foldout(showPresents, "Preset", true);
         if (showPresents)
