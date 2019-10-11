@@ -10,7 +10,7 @@ Material:
   m_Name: MyLit
   m_Shader: {fileID: 4800000, guid: 1f3290ecaee4e5642b0353b767be61c3, type: 3}
   m_ShaderKeywords: _CLIPPING_OFF _RECEIVE_SHADOWS
-  m_LightmapFlags: 2
+  m_LightmapFlags: 1
   m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1

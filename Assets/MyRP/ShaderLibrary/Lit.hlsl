@@ -19,7 +19,7 @@ CBUFFER_START(UnityPerDraw)
     float4 unity_SpecCube0_ProbePosition, unity_SpecCube0_HDR;
     float4 unity_SpecCube1_BoxMin, unity_SpecCube1_BoxMax;
     float4 unity_SpecCube1_ProbePosition, unity_SpecCube1_HDR;
-    float4 unity_LightmapST;
+    float4 unity_LightmapST, unity_DynamicLightmapST;
     float4 unity_SHAr, unity_SHAg, unity_SHAb;
     float4 unity_SHBr, unity_SHBg, unity_SHBb;
     float4 unity_SHC;
@@ -75,6 +75,9 @@ SAMPLER(samplerunity_Lightmap);
 
 TEXTURE3D_FLOAT(unity_ProbeVolumeSH);
 SAMPLER(samplerunity_ProbeVolumeSH);
+
+TEXTURE2D(unity_DynamicLightmap);
+SAMPLER(samplerunity_DynamicLightmap);
 
 float InsideCasecadeCullingSphere(int index, float3 worldPos)
 {
@@ -287,6 +290,7 @@ struct VertexInput
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
     float2 lightmapUV : TEXCOORD1;
+    float2 dynamicLightmapUV : TEXCOORD2;
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
@@ -300,8 +304,16 @@ struct VertexOutput
     #if defined(LIGHTMAP_ON)
         float2 lightmapUV : TEXCOORD4;
     #endif
+    #if defined(DYNAMICLIGHTMAP_ON)
+        float2 dynamicLightmapUV : TEXCOORD5;
+    #endif
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
+
+float3 SampleDynamicLightmap(float2 uv)
+{
+    return SampleSingleLightmap(TEXTURE2D_ARGS(unity_DynamicLightmap, samplerunity_DynamicLightmap), uv, float4(1, 1, 0, 0), false, float4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0, 0.0));
+}
 
 float3 SampleLightmap(float2 uv)
 {
@@ -338,7 +350,13 @@ float3 SampleLightProbes(LitSurface s)
 float3 GlobalIllumination(VertexOutput input, LitSurface surface)
 {
     #if defined(LIGHTMAP_ON)
-        return SampleLightmap(input.lightmapUV);
+        float3 gi = SampleLightmap(input.lightmapUV);
+        #if defined(DYNAMICLIGHTMAP_ON)
+            gi += SampleDynamicLightmap(input.dynamicLightmapUV);
+        #endif
+        return gi;
+    #elif defined(DYNAMICLIGHTMAP_ON)
+        return SampleDynamicLightmap(input.dynamicLightmapUV);
     #else
         //开启GUP Instance会导致错误
         return SampleLightProbes(surface);
@@ -373,6 +391,10 @@ VertexOutput LitPassVertex (VertexInput input)
     output.uv = TRANSFORM_TEX(input.uv, _MainTex);
     #if defined(LIGHTMAP_ON)
         output.lightmapUV = input.lightmapUV * unity_LightmapST.xy + unity_LightmapST.zw;
+    #endif
+
+    #if defined(DYNAMICLIGHTMAP_ON)
+        output.dynamicLightmapUV = input.dynamicLightmapUV * unity_DynamicLightmapST.xy + unity_DynamicLightmapST.zw;
     #endif
     return output;
 }
