@@ -1,8 +1,9 @@
 ﻿using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
-
+using LightType = UnityEngine.LightType;
 using Conditional = System.Diagnostics.ConditionalAttribute;
+using UnityEngine.Experimental.GlobalIllumination;
 
 namespace MyRP
 {
@@ -78,6 +79,45 @@ namespace MyRP
         //是否有满足条件的主光源
         bool mainLightExists;
 
+#if UNITY_EDITOR
+        static Lightmapping.RequestLightsDelegate lightmappingLightsDelegate = (Light[] inputLights, NativeArray<LightDataGI> outputLights) => {
+            LightDataGI lightData = new LightDataGI();
+            for (int i = 0; i < inputLights.Length; ++i)
+            {
+                Light light = inputLights[i];
+                switch (light.type)
+                {
+                    case LightType.Directional:
+                        var directionalLight = new DirectionalLight();
+                        LightmapperUtils.Extract(light, ref directionalLight);
+                        lightData.Init(ref directionalLight);
+                        break;
+                    case LightType.Point:
+                        var pointLight = new PointLight();
+                        LightmapperUtils.Extract(light, ref pointLight);
+                        lightData.Init(ref pointLight);
+                        break;
+                    case LightType.Spot:
+                        var spotLight = new SpotLight();
+                        LightmapperUtils.Extract(light, ref spotLight);
+                        lightData.Init(ref spotLight);
+                        break;
+                    case LightType.Area:
+                        var rectangleLight = new RectangleLight();
+                        LightmapperUtils.Extract(light, ref rectangleLight);
+                        lightData.Init(ref rectangleLight);
+                        break;
+                    default:
+                        lightData.InitNoBake(light.GetInstanceID());
+                        break;
+
+                }
+                lightData.falloff = FalloffType.InverseSquared;
+                outputLights[i] = lightData;
+            }
+        };
+#endif
+
         public MyPipeline(bool dynamicBatching, bool instancing, int shadowMapSize, float shadowDistance, int shadowCascades, Vector3 shadowCascadeSplit)
         {
             //light的强度值使用线性空间
@@ -91,7 +131,18 @@ namespace MyRP
             this.shadowDistance = shadowDistance;
             this.shadowCascades = shadowCascades;
             this.shadowCascadeSplit = shadowCascadeSplit;
+#if UNITY_EDITOR
+            Lightmapping.SetDelegate(lightmappingLightsDelegate);
+#endif
         }
+
+#if UNITY_EDITOR
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            Lightmapping.ResetDelegate();
+        }
+#endif
 
         protected override void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
